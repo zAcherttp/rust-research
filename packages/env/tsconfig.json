@@ -1,0 +1,3 @@
+{
+  "extends": "@rust-research/config/tsconfig.base.json"
+}

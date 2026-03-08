@@ -1,0 +1,26 @@
+{
+  "name": "@rust-research/api",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@rust-research/db": "workspace:*",
+    "@rust-research/env": "workspace:*",
+    "@trpc/client": "catalog:",
+    "@trpc/server": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@rust-research/config": "workspace:*",
+    "hono": "catalog:",
+    "typescript": "^5"
+  }
+}

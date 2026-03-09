@@ -1,13 +1,13 @@
 {
-	"extends": "@rust-research/config/tsconfig.base.json",
-	"compilerOptions": {
-		"baseUrl": ".",
-		"jsx": "react-jsx",
-		"lib": ["ESNext", "DOM", "DOM.Iterable"],
-		"paths": {
-			"@rust-research/ui/*": ["./src/*"]
-		}
-	},
-	"include": ["src/**/*.ts", "src/**/*.tsx"],
-	"exclude": ["node_modules"]
+  "extends": "@rust-research/config/tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@rust-research/ui/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules"]
 }

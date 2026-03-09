@@ -1,5 +1,5 @@
 {
-  "name": "@rust-research/config",
-  "version": "0.0.0",
-  "private": true
+	"name": "@rust-research/config",
+	"version": "0.0.0",
+	"private": true
 }

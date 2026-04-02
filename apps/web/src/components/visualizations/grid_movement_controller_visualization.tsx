@@ -62,12 +62,27 @@ interface SocketErrorMessage {
 }
 
 const GRID_SIZE = 9;
-const QUEUE_CAPACITY = 2;
-const HOLD_STACK_LIMIT = 2;
+const QUEUE_CAPACITY = 1;
+const HOLD_STACK_LIMIT = 1;
 const DEFAULT_DELAY = 420;
 const MOVE_STEP_MS = 180;
 const HOLD_ACTIVATION_MS = 90;
 const HOLD_TOP_UP_MS = 150;
+const OBSTACLE_COORDS: GridPosition[] = [
+  { x: 2, y: 1 },
+  { x: 5, y: 1 },
+  { x: 1, y: 3 },
+  { x: 3, y: 3 },
+  { x: 5, y: 3 },
+  { x: 7, y: 3 },
+  { x: 2, y: 5 },
+  { x: 6, y: 5 },
+  { x: 3, y: 7 },
+  { x: 5, y: 7 },
+];
+const OBSTACLE_KEYS = new Set(
+  OBSTACLE_COORDS.map((position) => createPositionKey(position)),
+);
 
 const KEY_TO_DIRECTION: Record<string, MovementDirection> = {
   w: "up",
@@ -209,6 +224,7 @@ export function GridMovementControllerVisualization() {
       clientPositionRef.current,
       nextAction.direction,
     );
+    const isBlocked = positionsEqual(nextPosition, clientPositionRef.current);
 
     clientPositionRef.current = nextPosition;
     setClientPosition(nextPosition);
@@ -216,7 +232,9 @@ export function GridMovementControllerVisualization() {
 
     const nextDirection = rest[0]?.direction;
     const message =
-      nextDirection === nextAction.direction
+      isBlocked
+        ? `${DIRECTION_META[nextAction.direction].label} blocked by obstacle.`
+        : nextDirection === nextAction.direction
         ? `Continuing ${DIRECTION_META[nextAction.direction].label} at constant speed.`
         : `Moved ${DIRECTION_META[nextAction.direction].label}.`;
     setStatusMessage(message);
@@ -524,7 +542,6 @@ export function GridMovementControllerVisualization() {
   const queueSlots = useMemo(() => {
     return Array.from({ length: QUEUE_CAPACITY }, (_, index) => ({
       slot: index + 1,
-      isOverridable: index === QUEUE_CAPACITY - 1,
       action: queue[index] ?? null,
     }));
   }, [queue]);
@@ -586,7 +603,7 @@ export function GridMovementControllerVisualization() {
                   Character plane
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground/80">
-                  Toggle the client border and server ball independently to
+                  Toggle the client ball and server outline independently to
                   inspect local prediction versus delayed server authority.
                 </p>
               </div>
@@ -607,6 +624,7 @@ export function GridMovementControllerVisualization() {
                       {Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, index) => {
                         const x = index % GRID_SIZE;
                         const y = Math.floor(index / GRID_SIZE);
+                        const isObstacle = isBlockedPosition({ x, y });
                         const isClientCell =
                           clientPosition.x === x && clientPosition.y === y;
                         const isServerCell =
@@ -617,27 +635,37 @@ export function GridMovementControllerVisualization() {
                             key={`${x}-${y}`}
                             className={cn(
                               "relative rounded-xl border border-white/6 bg-white/[0.03]",
-                              isClientCell &&
-                                showClientState &&
-                                "bg-emerald-300/[0.06]",
+                              isObstacle &&
+                                "border-rose-400/15 bg-linear-to-br from-rose-500/20 via-red-500/12 to-stone-950/70",
                             )}
                           >
                             <span className="absolute top-2 left-2 select-none text-[0.55rem] text-white/18">
                               {x},{y}
                             </span>
 
-                            {isClientCell && showClientState ? (
-                              <div className="absolute inset-1 rounded-[0.9rem] border-2 border-emerald-300/80 shadow-[0_0_0_1px_rgba(16,185,129,0.25),0_0_28px_rgba(52,211,153,0.18)]" />
+                            {isObstacle ? (
+                              <div className="absolute inset-0 rounded-xl bg-[linear-gradient(135deg,transparent_0_42%,rgba(251,113,133,0.28)_42%_49%,transparent_49%_51%,rgba(251,113,133,0.28)_51%_58%,transparent_58%_100%)] opacity-90" />
                             ) : null}
 
-                            {isServerCell && showServerState ? (
+                            {isClientCell && showClientState ? (
                               <motion.div
-                                layoutId="player"
+                                layoutId="client-player"
                                 transition={{
                                   duration: MOVE_STEP_MS / 1000,
                                   ease: "linear",
                                 }}
-                                className="absolute inset-2 rounded-full bg-linear-to-br from-sky-300 via-sky-400 to-cyan-300 shadow-[0_0_0_6px_rgba(56,189,248,0.12),0_0_38px_rgba(56,189,248,0.45)]"
+                                className="absolute inset-3 rounded-full bg-linear-to-br from-emerald-300 via-emerald-400 to-teal-300 shadow-[0_0_0_5px_rgba(16,185,129,0.12),0_0_28px_rgba(52,211,153,0.28)]"
+                              />
+                            ) : null}
+
+                            {isServerCell && showServerState ? (
+                              <motion.div
+                                layoutId="server-player"
+                                transition={{
+                                  duration: MOVE_STEP_MS / 1000,
+                                  ease: "linear",
+                                }}
+                                className="absolute inset-2.5 rounded-full border-[3px] border-sky-300/90 bg-transparent shadow-[0_0_0_6px_rgba(56,189,248,0.08),0_0_34px_rgba(56,189,248,0.3)]"
                               />
                             ) : null}
                           </div>
@@ -650,13 +678,13 @@ export function GridMovementControllerVisualization() {
                     <LegendPill
                       active={showClientState}
                       onClick={() => setShowClientState((current) => !current)}
-                      swatchClassName="border-2 border-emerald-300/80 bg-emerald-300/10"
+                      swatchClassName="bg-linear-to-br from-emerald-300 via-emerald-400 to-teal-300"
                       label="Instant client state"
                     />
                     <LegendPill
                       active={showServerState}
                       onClick={() => setShowServerState((current) => !current)}
-                      swatchClassName="bg-linear-to-br from-sky-300 via-sky-400 to-cyan-300"
+                      swatchClassName="border-[2px] border-sky-300/90 bg-transparent"
                       label="Server state"
                     />
                   </div>
@@ -704,7 +732,7 @@ export function GridMovementControllerVisualization() {
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     Tap once to enqueue one move. Holding a single key silently
                     tops the queue back up so straight movement keeps flowing.
-                    Manual taps can still fill both queue slots.
+                    There is only one buffered queue slot.
                   </p>
                 </Panel>
 
@@ -836,19 +864,11 @@ export function GridMovementControllerVisualization() {
             <Panel title="Stack rules" subtitle="What this simulation enforces">
               <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
                 <RuleRow label="Tap buffer">
-                  Any single press adds one move, up to 2 queued actions.
+                  Any single press adds one move, up to 1 queued action.
                 </RuleRow>
                 <RuleRow label="Hold buffer">
-                  A single held direction silently keeps up to 2 hold-generated
-                  moves buffered.
-                </RuleRow>
-                <RuleRow label="Pre-queue slot">
-                  Slot 1 is the pre-queue slot. It keeps the next committed move
-                  ahead of the override tail.
-                </RuleRow>
-                <RuleRow label="Override slot">
-                  Slot 2 is overridable. When the queue is full, new input
-                  replaces the last pending slot.
+                  A single held direction silently keeps up to 1 hold-generated
+                  move buffered.
                 </RuleRow>
                 <RuleRow label="Straight runs">
                   Consecutive same-direction actions chain at a fixed cadence, so
@@ -939,25 +959,15 @@ function QueueSlot({
 }: {
   slot: {
     slot: number;
-    isOverridable: boolean;
     action: MovementAction | null;
   };
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-[1.5rem] border p-4 transition-colors",
-        slot.isOverridable
-          ? "border-dashed border-sky-500/35 bg-sky-500/5"
-          : "border-border/70 bg-muted/30",
-      )}
-    >
+    <div className="rounded-[1.5rem] border border-border/70 bg-muted/30 p-4 transition-colors">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-medium">Slot {slot.slot}</p>
-          <p className="text-xs text-muted-foreground">
-            {slot.isOverridable ? "Overridable slot" : "Pre-queue slot"}
-          </p>
+          <p className="text-xs text-muted-foreground">Single queue slot</p>
         </div>
         <span
           className={cn(
@@ -1066,15 +1076,12 @@ function resolveQueueUpdate(
     };
   }
 
-  const nextQueue = [...currentQueue];
-  nextQueue[QUEUE_CAPACITY - 1] = nextAction;
-
   return {
-    nextQueue,
+    nextQueue: currentQueue,
     statusMessage:
       source === "hold"
         ? null
-        : `Queue full. Overrode slot ${QUEUE_CAPACITY} with ${DIRECTION_META[direction].label}.`,
+        : "Queue full. Wait for the buffered move to start.",
   };
 }
 
@@ -1095,15 +1102,28 @@ function applyMovement(
   direction: MovementDirection,
 ): GridPosition {
   const delta = DIRECTION_META[direction].delta;
-
-  return {
+  const nextPosition = {
     x: clamp(position.x + delta.x, 0, GRID_SIZE - 1),
     y: clamp(position.y + delta.y, 0, GRID_SIZE - 1),
   };
+
+  return isBlockedPosition(nextPosition) ? position : nextPosition;
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function createPositionKey(position: GridPosition) {
+  return `${position.x},${position.y}`;
+}
+
+function isBlockedPosition(position: GridPosition) {
+  return OBSTACLE_KEYS.has(createPositionKey(position));
+}
+
+function positionsEqual(left: GridPosition, right: GridPosition) {
+  return left.x === right.x && left.y === right.y;
 }
 
 function createWebSocketUrl(baseUrl: string, pathname: string) {

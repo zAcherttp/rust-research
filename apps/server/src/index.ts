@@ -44,6 +44,21 @@ const DIRECTION_DELTAS: Record<MovementDirection, GridPosition> = {
   left: { x: -1, y: 0 },
   right: { x: 1, y: 0 },
 };
+const OBSTACLE_COORDS: GridPosition[] = [
+  { x: 2, y: 1 },
+  { x: 5, y: 1 },
+  { x: 1, y: 3 },
+  { x: 3, y: 3 },
+  { x: 5, y: 3 },
+  { x: 7, y: 3 },
+  { x: 2, y: 5 },
+  { x: 6, y: 5 },
+  { x: 3, y: 7 },
+  { x: 5, y: 7 },
+];
+const OBSTACLE_KEYS = new Set(
+  OBSTACLE_COORDS.map((position) => createPositionKey(position)),
+);
 
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 const app = new Hono();
@@ -94,12 +109,15 @@ app.get(
         x: clamp(payload.position.x + delta.x, 0, safeGridSize - 1),
         y: clamp(payload.position.y + delta.y, 0, safeGridSize - 1),
       };
+      const resolvedPosition = isBlockedPosition(nextPosition)
+        ? payload.position
+        : nextPosition;
 
       ws.send(
         JSON.stringify({
           type: "action_ack",
           requestId: payload.requestId,
-          position: nextPosition,
+          position: resolvedPosition,
           serverTime: new Date().toISOString(),
           consumedAction: payload.action,
           delayMs: safeDelay,
@@ -172,4 +190,12 @@ function sleep(delayMs: number) {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
+}
+
+function createPositionKey(position: GridPosition) {
+  return `${position.x},${position.y}`;
+}
+
+function isBlockedPosition(position: GridPosition) {
+  return OBSTACLE_KEYS.has(createPositionKey(position));
 }

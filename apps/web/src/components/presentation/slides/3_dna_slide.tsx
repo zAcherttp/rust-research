@@ -1,5 +1,12 @@
 import { motion } from "motion/react";
-import { Slide, SlideContent, SlideSubtitle, SlideTitle } from "../slide";
+import {
+  InfoPanel,
+  SlideBody,
+  SlideFrame,
+  SlideHeader,
+  SlideSubtitle,
+  SlideTitle,
+} from "../slide";
 
 export function DNASlide() {
   const timelineItems = [
@@ -40,12 +47,15 @@ export function DNASlide() {
   ];
 
   return (
-    <Slide>
-      <SlideTitle>Kỷ nguyên Mozilla & DNA của Rust</SlideTitle>
-      <SlideSubtitle>
-        Từ một dự án cá nhân (2006) đến chuẩn mực mới (2015)
-      </SlideSubtitle>
-      <SlideContent>
+    <SlideFrame>
+      <SlideHeader>
+        <SlideTitle>Kỷ nguyên Mozilla & DNA của Rust</SlideTitle>
+        <SlideSubtitle>
+          Từ một dự án cá nhân (2006) đến chuẩn mực mới (2015)
+        </SlideSubtitle>
+      </SlideHeader>
+
+      <SlideBody>
         <div className="mt-8 flex flex-col items-center gap-14">
           <div className="relative w-full max-w-5xl overflow-hidden rounded-[2rem] border border-border/70 bg-linear-to-br from-background via-background to-muted/20 px-8 py-10">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(249,115,22,0.08),transparent_28%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.1),transparent_24%)]" />
@@ -93,7 +103,7 @@ export function DNASlide() {
             </div>
           </div>
 
-          <div className="max-w-3xl rounded-xl border border-border bg-card p-8 text-center text-card-foreground text-lg leading-relaxed">
+          <InfoPanel className="max-w-3xl p-8 text-center text-lg leading-relaxed">
             <p>
               Trái với vẻ ngoài giống C++, trình biên dịch đầu tiên của Rust
               chứa 38.000 dòng mã{" "}
@@ -102,9 +112,9 @@ export function DNASlide() {
               <em>lý thuyết học thuật cổ điển</em> đội lốt một ngôn ngữ lập
               trình hệ thống hiện đại.
             </p>
-          </div>
+          </InfoPanel>
         </div>
-      </SlideContent>
-    </Slide>
+      </SlideBody>
+    </SlideFrame>
   );
 }

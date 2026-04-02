@@ -28,7 +28,7 @@ export default function RootLayout({
       </head>
       <body className={`${GeistSans.className} antialiased`}>
         <Providers>
-          <div className="grid h-svh grid-rows-[auto_1fr]">{children}</div>
+          <div className="grid min-h-svh grid-rows-[auto_1fr]">{children}</div>
         </Providers>
       </body>
     </html>

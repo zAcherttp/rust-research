@@ -3,7 +3,13 @@
 import { motion } from "motion/react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import { Slide, SlideContent, SlideSubtitle, SlideTitle } from "../slide";
+import {
+  SlideBody,
+  SlideFrame,
+  SlideHeader,
+  SlideSubtitle,
+  SlideTitle,
+} from "../slide";
 
 export function IntroSlide() {
   const [mounted, setMounted] = useState(false);
@@ -16,19 +22,23 @@ export function IntroSlide() {
   const fillColor = mounted && theme === "dark" ? "#fff" : "#1D1D1B";
 
   return (
-    <Slide className="text-center">
-      <SlideTitle className="bg-linear-to-r from-orange-500 to-amber-600 bg-clip-text text-transparent">
-        Rust Programming Language
-      </SlideTitle>
-      <SlideSubtitle>A Systems Language for the Next Generation</SlideSubtitle>
-      <SlideContent>
+    <SlideFrame className="items-center text-center">
+      <SlideHeader className="flex flex-col items-center">
+        <SlideTitle className="bg-linear-to-r from-orange-500 to-amber-600 bg-clip-text text-transparent">
+          Rust Programming Language
+        </SlideTitle>
+        <SlideSubtitle>
+          A Systems Language for the Next Generation
+        </SlideSubtitle>
+      </SlideHeader>
+
+      <SlideBody className="items-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.6, duration: 0.5, type: "spring" }}
           className="mx-auto mt-8 flex h-48 w-96 items-center justify-center rounded-2xl bg-background/10 p-8 ring-1 ring-ring/30"
         >
-          {/* Rust-like Gear Logo */}
           <svg fill="none" viewBox="0 0 224 224">
             <title>Rust logo</title>
             <path
@@ -136,10 +146,11 @@ export function IntroSlide() {
             </defs>
           </svg>
         </motion.div>
+
         <p className="mt-12 text-muted-foreground">
           Released in 2015 by Mozilla Research.
         </p>
-      </SlideContent>
-    </Slide>
+      </SlideBody>
+    </SlideFrame>
   );
 }

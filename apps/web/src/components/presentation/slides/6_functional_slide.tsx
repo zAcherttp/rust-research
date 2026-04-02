@@ -1,26 +1,32 @@
-import { Slide, SlideContent, SlideSubtitle, SlideTitle } from "../slide";
+import {
+  InfoPanel,
+  PlaceholderPanel,
+  SlideBody,
+  SlideFrame,
+  SlideHeader,
+  SlideSubtitle,
+  SlideTitle,
+} from "../slide";
 
 export function FunctionalSlide() {
   return (
-    <Slide>
-      <SlideTitle>Lập trình Hàm & Tránh Lỗi Tỷ Đô</SlideTitle>
-      <SlideSubtitle>
-        Null pointers đã lỗi thời. ADTs là tương lai.
-      </SlideSubtitle>
-      <SlideContent>
-        <div className="mt-12 flex w-full max-w-5xl flex-col items-center justify-center space-y-12">
-          <div className="flex h-56 w-full max-w-4xl items-center justify-center rounded-xl border border-border border-dashed bg-muted/50 p-8">
-            <div className="px-8 text-center text-muted-foreground italic">
-              [Placeholder: Hình ảnh con trỏ Null biến thành hộp sọ, bị đập vỡ
-              bởi thanh kiếm Option&lt;T&gt; và Result&lt;T, E&gt;]
-            </div>
-          </div>
+    <SlideFrame>
+      <SlideHeader>
+        <SlideTitle>Lập trình Hàm & Tránh Lỗi Tỷ Đô</SlideTitle>
+        <SlideSubtitle>
+          Null pointers đã lỗi thời. ADTs là tương lai.
+        </SlideSubtitle>
+      </SlideHeader>
 
-          <div className="grid w-full grid-cols-2 gap-8 text-center">
-            <div className="flex h-full flex-col items-center justify-center rounded-xl border border-border bg-card p-8">
-              <h3 className="mb-4 font-bold font-mono text-2xl text-orange-400">
-                Option&lt;T&gt;
-              </h3>
+      <SlideBody>
+        <div className="mt-12 flex w-full max-w-5xl flex-col items-center justify-center space-y-12">
+          <PlaceholderPanel className="h-56 max-w-4xl">
+            [Placeholder: Hình ảnh con trỏ Null biến thành hộp sọ, bị đập vỡ bởi
+            thanh kiếm Option&lt;T&gt; và Result&lt;T, E&gt;]
+          </PlaceholderPanel>
+
+          <div className="grid w-full grid-cols-1 gap-8 text-center lg:grid-cols-2">
+            <InfoPanel title="Option&lt;T&gt;" className="h-full text-center">
               <p className="text-base text-muted-foreground leading-relaxed">
                 Tuyệt đối không có Null hay Undefined.
                 <br />
@@ -35,11 +41,9 @@ export function FunctionalSlide() {
                 </code>
                 .
               </p>
-            </div>
-            <div className="flex h-full flex-col items-center justify-center rounded-xl border border-border bg-card p-8">
-              <h3 className="mb-4 font-bold font-mono text-2xl text-emerald-400">
-                Result&lt;T, E&gt;
-              </h3>
+            </InfoPanel>
+
+            <InfoPanel title="Result&lt;T, E&gt;" className="h-full text-center">
               <p className="text-base text-muted-foreground leading-relaxed">
                 Không còn Try-Catch exceptions ngầm định.
                 <br />
@@ -47,7 +51,7 @@ export function FunctionalSlide() {
                 <strong className="text-pink-400">Pattern Matching</strong>{" "}
                 (Khớp mẫu).
               </p>
-            </div>
+            </InfoPanel>
           </div>
 
           <p className="w-full max-w-3xl border-border border-t pt-4 text-center text-foreground/80 text-lg leading-relaxed">
@@ -57,7 +61,7 @@ export function FunctionalSlide() {
             đảm luồng xử lý lỗi được hoàn thiện 100% trước khi có thể biên dịch.
           </p>
         </div>
-      </SlideContent>
-    </Slide>
+      </SlideBody>
+    </SlideFrame>
   );
 }

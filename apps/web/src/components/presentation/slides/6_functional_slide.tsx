@@ -43,7 +43,10 @@ export function FunctionalSlide() {
               </p>
             </InfoPanel>
 
-            <InfoPanel title="Result&lt;T, E&gt;" className="h-full text-center">
+            <InfoPanel
+              title="Result&lt;T, E&gt;"
+              className="h-full text-center"
+            >
               <p className="text-base text-muted-foreground leading-relaxed">
                 Không còn Try-Catch exceptions ngầm định.
                 <br />

@@ -8,10 +8,10 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { type ReactElement, useEffect, useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import {
-  presentationStore,
-  resolveSlide,
   type DeckItem,
   type DeckSlide,
+  presentationStore,
+  resolveSlide,
 } from "./slide_store";
 
 export interface PresentationInitialSlide {
@@ -39,10 +39,7 @@ export interface PresentationStackProps {
   children: React.ReactNode;
 }
 
-function PresentationSlide({
-  children,
-  className,
-}: PresentationSlideProps) {
+function PresentationSlide({ children, className }: PresentationSlideProps) {
   return <div className={cn("h-full w-full", className)}>{children}</div>;
 }
 
@@ -59,7 +56,10 @@ function PresentationRoot({
   const currentX = useStore(presentationStore, (state) => state.currentX);
   const currentY = useStore(presentationStore, (state) => state.currentY);
   const deck = useStore(presentationStore, (state) => state.deck);
-  const storeShowHints = useStore(presentationStore, (state) => state.showHints);
+  const storeShowHints = useStore(
+    presentationStore,
+    (state) => state.showHints,
+  );
 
   const router = useRouter();
   const pathname = usePathname();
@@ -99,7 +99,15 @@ function PresentationRoot({
     router.replace(`${pathname}?${nextSearchParams.toString()}` as Route, {
       scroll: false,
     });
-  }, [currentSlideParam, currentX, currentY, deck.length, pathname, router, searchParams]);
+  }, [
+    currentSlideParam,
+    currentX,
+    currentY,
+    deck.length,
+    pathname,
+    router,
+    searchParams,
+  ]);
 
   useHotkeys(
     ["ArrowRight", "Space"],
@@ -214,14 +222,23 @@ function PresentationRoot({
 
 function normalizeDeck(children: React.ReactNode): DeckItem[] {
   return React.Children.toArray(children).flatMap((child, index) => {
-    if (!isPresentationElement<PresentationSlideProps>(child, PresentationSlide)) {
-      if (!isPresentationElement<PresentationStackProps>(child, PresentationStack)) {
+    if (
+      !isPresentationElement<PresentationSlideProps>(child, PresentationSlide)
+    ) {
+      if (
+        !isPresentationElement<PresentationStackProps>(child, PresentationStack)
+      ) {
         return [];
       }
 
       const stackSlides = React.Children.toArray(child.props.children).flatMap(
         (stackChild, stackIndex) => {
-          if (!isPresentationElement<PresentationSlideProps>(stackChild, PresentationSlide)) {
+          if (
+            !isPresentationElement<PresentationSlideProps>(
+              stackChild,
+              PresentationSlide,
+            )
+          ) {
             return [];
           }
 
@@ -270,7 +287,9 @@ function isPresentationElement<Props>(
   return React.isValidElement(value) && value.type === component;
 }
 
-function parseSlideParam(slideParam: string | null): PresentationInitialSlide | null {
+function parseSlideParam(
+  slideParam: string | null,
+): PresentationInitialSlide | null {
   if (!slideParam) {
     return null;
   }

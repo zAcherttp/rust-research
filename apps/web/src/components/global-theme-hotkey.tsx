@@ -1,7 +1,7 @@
 "use client";
 
-import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useHotkeys } from "react-hotkeys-hook";
 
 export function GlobalThemeHotkey() {

@@ -46,9 +46,7 @@ export function HistoryCurseSlide() {
     <SlideFrame>
       <SlideHeader>
         <SlideTitle>Lời nguyền Nhị phân của Khoa học Máy tính</SlideTitle>
-        <SlideSubtitle>
-          Tốc độ hay An toàn? Sự đánh đổi lịch sử
-        </SlideSubtitle>
+        <SlideSubtitle>Tốc độ hay An toàn? Sự đánh đổi lịch sử</SlideSubtitle>
       </SlideHeader>
 
       <SlideBody>

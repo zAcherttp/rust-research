@@ -64,10 +64,7 @@ export function RustDeck() {
         <Presentation.Slide id="oop-vs-traits" label="OOP vs Traits">
           <OOPvsTraitsSlide />
         </Presentation.Slide>
-        <Presentation.Slide
-          id="monomorphization"
-          label="Static Polymorphism"
-        >
+        <Presentation.Slide id="monomorphization" label="Static Polymorphism">
           <MonomorphizationSlide />
         </Presentation.Slide>
       </Presentation.Stack>

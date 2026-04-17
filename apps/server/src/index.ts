@@ -2,8 +2,8 @@ import { trpcServer } from "@hono/trpc-server";
 import { createContext } from "@rust-research/api/context";
 import { appRouter } from "@rust-research/api/routers/index";
 import { env } from "@rust-research/env/server";
-import { createBunWebSocket } from "hono/bun";
 import { Hono } from "hono";
+import { createBunWebSocket } from "hono/bun";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
@@ -145,9 +145,7 @@ async function parseConsumeMessage(raw: string | ArrayBufferLike | Blob) {
           ? await raw.text()
           : Buffer.from(raw).toString("utf8");
 
-    const parsed = JSON.parse(
-      text,
-    ) as Partial<ConsumeActionMessage>;
+    const parsed = JSON.parse(text) as Partial<ConsumeActionMessage>;
 
     if (
       parsed.type !== "consume_action" ||

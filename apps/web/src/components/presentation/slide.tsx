@@ -31,7 +31,12 @@ interface SlideFrameProps {
 export function SlideFrame({ children, className }: SlideFrameProps) {
   return (
     <main className="flex h-full w-full items-center justify-center p-8 md:p-16 lg:p-24">
-      <div className={cn("mx-auto flex h-full w-full max-w-6xl flex-col", className)}>
+      <div
+        className={cn(
+          "mx-auto flex h-full w-full max-w-6xl flex-col",
+          className,
+        )}
+      >
         {children}
       </div>
     </main>
@@ -206,7 +211,7 @@ export function CompareCard({
 
       {media ? <div className="mt-6">{media}</div> : null}
 
-      <h3 className="mt-6 font-semibold text-foreground text-3xl leading-tight">
+      <h3 className="mt-6 font-semibold text-3xl text-foreground leading-tight">
         {title}
       </h3>
 
@@ -224,7 +229,9 @@ export function CompareCard({
               className="flex items-start gap-3 border-border/60 border-t pt-3 first:border-t-0 first:pt-0"
             >
               <div className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-current" />
-              <div className="text-base text-foreground/88 leading-relaxed">{point}</div>
+              <div className="text-base text-foreground/88 leading-relaxed">
+                {point}
+              </div>
             </div>
           ))}
         </div>
@@ -376,7 +383,7 @@ export function CodeStage({
       >
         <CodeBlock {...codeBlockProps} />
         {narrative ? (
-          <div className="text-sm text-muted-foreground leading-relaxed">
+          <div className="text-muted-foreground text-sm leading-relaxed">
             {narrative}
           </div>
         ) : null}

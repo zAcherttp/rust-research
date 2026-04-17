@@ -65,10 +65,12 @@ export function GrandConclusionSlide() {
               </h3>
               <ul className="space-y-3 font-mono text-lg text-muted-foreground">
                 <li className="flex items-center gap-3">
-                  <span className="text-orange-500">👉</span> github.com/rust-lang/rust
+                  <span className="text-orange-500">👉</span>{" "}
+                  github.com/rust-lang/rust
                 </li>
                 <li className="flex items-center gap-3">
-                  <span className="text-orange-500">👉</span> doc.rust-lang.org/book
+                  <span className="text-orange-500">👉</span>{" "}
+                  doc.rust-lang.org/book
                 </li>
                 <li className="flex items-center gap-3">
                   <span className="text-orange-500">👉</span>{" "}

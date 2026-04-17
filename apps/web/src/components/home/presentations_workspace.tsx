@@ -47,7 +47,7 @@ export function PresentationsWorkspace() {
             </p>
           </div>
 
-          <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-3 lg:min-w-[30rem]">
+          <div className="grid gap-3 text-muted-foreground text-sm sm:grid-cols-3 lg:min-w-[30rem]">
             <WorkspaceMetric
               icon={<FileStack className="h-4 w-4" />}
               label="Available"
@@ -78,7 +78,7 @@ export function PresentationsWorkspace() {
                 <p className="font-medium text-muted-foreground text-sm">
                   Library index
                 </p>
-                <p className="text-sm text-muted-foreground/80">
+                <p className="text-muted-foreground/80 text-sm">
                   Open a project to jump directly into its dedicated runtime.
                 </p>
               </div>
@@ -127,7 +127,7 @@ export function PresentationsWorkspace() {
               </p>
               <div className="mt-4 rounded-[1.75rem] border border-border/70 bg-background/75 p-5 backdrop-blur">
                 <p className="font-semibold text-lg">Rust deck is live</p>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                <p className="mt-2 text-muted-foreground text-sm leading-relaxed">
                   The library now supports both decks and visualizations. New
                   entries only need metadata and a route to appear here.
                 </p>
@@ -213,12 +213,12 @@ function PresentationProjectCard({
 
           <div className="relative flex h-full flex-col justify-between p-5">
             <div className="flex items-start justify-between">
-              <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] uppercase tracking-[0.2em] text-white/70">
+              <div className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[0.7rem] text-white/70 uppercase tracking-[0.2em]">
                 {presentation.category}
               </div>
               <div
                 className={cn(
-                  "rounded-full px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.18em]",
+                  "rounded-full px-3 py-1 font-medium text-[0.7rem] uppercase tracking-[0.18em]",
                   presentation.accentSoftClassName,
                 )}
               >
@@ -278,14 +278,14 @@ function PresentationProjectCard({
               </h2>
               <span
                 className={cn(
-                  "rounded-full px-2.5 py-1 text-[0.7rem] font-medium uppercase tracking-[0.18em]",
+                  "rounded-full px-2.5 py-1 font-medium text-[0.7rem] uppercase tracking-[0.18em]",
                   presentation.accentSoftClassName,
                 )}
               >
                 {presentation.sizeLabel}
               </span>
             </div>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground leading-relaxed">
+            <p className="mt-2 max-w-xl text-muted-foreground text-sm leading-relaxed">
               {presentation.description}
             </p>
           </div>
@@ -310,10 +310,10 @@ function PresentationProjectCard({
 function SidebarRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="border-border/60 border-b pb-4 last:border-b-0 last:pb-0">
-      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground/70">
+      <p className="text-muted-foreground/70 text-xs uppercase tracking-[0.18em]">
         {label}
       </p>
-      <p className="mt-2 text-sm text-foreground/88 leading-relaxed">{value}</p>
+      <p className="mt-2 text-foreground/88 text-sm leading-relaxed">{value}</p>
     </div>
   );
 }

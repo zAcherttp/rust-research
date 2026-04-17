@@ -53,9 +53,7 @@ export function ConcurrencyEcosystemSlide() {
     <SlideFrame>
       <SlideHeader>
         <SlideTitle>Tính Đồng thời: Lãnh địa tử thần</SlideTitle>
-        <SlideSubtitle>
-          Erlang, Go và Rust đối mặt với Đa luồng
-        </SlideSubtitle>
+        <SlideSubtitle>Erlang, Go và Rust đối mặt với Đa luồng</SlideSubtitle>
       </SlideHeader>
 
       <SlideBody>
@@ -101,9 +99,7 @@ export function FearlessConcurrencySlide() {
     <SlideFrame>
       <SlideHeader>
         <SlideTitle>Fearless Concurrency (Deep Dive)</SlideTitle>
-        <SlideSubtitle>
-          Tuyệt kĩ Send & Sync triệt tiêu Data Race
-        </SlideSubtitle>
+        <SlideSubtitle>Tuyệt kĩ Send & Sync triệt tiêu Data Race</SlideSubtitle>
       </SlideHeader>
 
       <SlideBody>

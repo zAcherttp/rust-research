@@ -1,5 +1,5 @@
-import { RustDeck } from "@/components/presentation/rust_deck";
 import { Suspense } from "react";
+import { RustDeck } from "@/components/presentation/rust_deck";
 
 export default function PresentationPage() {
   return (

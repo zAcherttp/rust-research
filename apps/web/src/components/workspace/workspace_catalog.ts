@@ -18,6 +18,23 @@ export interface WorkspaceCatalogItem {
 
 export const workspaceCatalog: WorkspaceCatalogItem[] = [
   {
+    id: "cipherflow-des-aes-rsa-visualization",
+    title: "CipherFlow cryptography internals",
+    href: "/visualizations/cipherflow" as Route,
+    category: "Cryptography",
+    format: "Interactive visualization",
+    description:
+      "Animate DES rounds, preview AES state transformations, and inspect RSA modular exponentiation step by step.",
+    status: "Live",
+    updatedAt: "Apr 18, 2026",
+    duration: "Open ended",
+    sizeLabel: "DES + AES + RSA",
+    accentClassName: "text-cyan-500",
+    accentSoftClassName: "bg-cyan-500/10 text-cyan-500",
+    previewClassName:
+      "from-cyan-500/18 via-zinc-950 to-amber-500/14 text-cyan-100",
+  },
+  {
     id: "grid-based-2d-character-movement-controller-visualization",
     title: "Grid based 2d character movement controller visualization",
     href: "/visualizations/grid-based-2d-character-movement-controller",

@@ -4,7 +4,7 @@ import { GeistMono } from "geist/font/mono";
 import { motion } from "motion/react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
-import type { ThemedToken } from "shiki";
+import type { BundledLanguage, ThemedToken, ThemeRegistrationAny } from "shiki";
 
 // Define our custom theme matching the presentation colors.
 // Pink for keywords, Blue for numbers/constants, Orange for mutability,
@@ -51,7 +51,7 @@ const presentationThemeDark = {
       settings: { fontStyle: "", foreground: "#fcd34d" }, // text-amber-300
     },
   ],
-};
+} satisfies ThemeRegistrationAny;
 
 const presentationThemeLight = {
   name: "presentation-theme-light",
@@ -95,7 +95,7 @@ const presentationThemeLight = {
       settings: { fontStyle: "", foreground: "#d97706" }, // text-amber-600
     },
   ],
-};
+} satisfies ThemeRegistrationAny;
 
 export interface CodeBlockProps {
   code: string;
@@ -131,11 +131,13 @@ export function CodeBlock({
           langs: [language],
         });
 
+        const selectedTheme = isLight
+          ? presentationThemeLight
+          : presentationThemeDark;
+
         const tokensResult = highlighter.codeToTokensBase(code, {
-          lang: language as any,
-          theme: isLight
-            ? ("presentation-theme-light" as any)
-            : ("presentation-theme-dark" as any),
+          lang: language as BundledLanguage,
+          theme: selectedTheme,
         });
 
         setTokens(tokensResult);

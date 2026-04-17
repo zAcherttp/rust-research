@@ -106,7 +106,10 @@ export function MonomorphizationSlide() {
           Thay vì tốn chi phí tìm bảng hàm ảo (vtables) lúc runtime như
           Java/Smalltalk để hỗ trợ đa hình động, Rust tự động ép kiểu tĩnh và
           sinh ra các hàm chuyên biệt riêng lẻ. Mã sinh ra tĩnh 100%, chạy{" "}
-          <strong className="text-green-400">nhanh bằng mã C thuần chủng</strong>.
+          <strong className="text-green-400">
+            nhanh bằng mã C thuần chủng
+          </strong>
+          .
         </p>
       </SlideBody>
     </SlideFrame>

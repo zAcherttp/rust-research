@@ -84,7 +84,10 @@ export const presentationStore = createStore<PresentationState>({
   },
   goDown: () => {
     presentationStore.setState((state) => {
-      const maxY = Math.max(0, (state.deck[state.currentX]?.slides.length ?? 1) - 1);
+      const maxY = Math.max(
+        0,
+        (state.deck[state.currentX]?.slides.length ?? 1) - 1,
+      );
       if (state.currentY < maxY) {
         return { ...state, currentY: state.currentY + 1 };
       }

@@ -14,6 +14,7 @@ import {
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+
 type MovementDirection = "up" | "down" | "left" | "right";
 type ActionSource = "tap" | "hold";
 type SocketStatus = "connecting" | "open" | "closed" | "error";
@@ -113,8 +114,7 @@ const DIRECTION_META: Record<
     label: "Down",
     icon: ArrowUp,
     delta: { x: 0, y: 1 },
-    chipClassName:
-      "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+    chipClassName: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
   },
   left: {
     keyLabel: "A",
@@ -186,9 +186,10 @@ export function GridMovementControllerVisualization() {
     serverInFlightRef.current = serverInFlight;
   }, [serverInFlight]);
 
-  const holdBufferedCount = queue.filter((action) => action.source === "hold").length;
-  const serverPendingCount =
-    serverBacklog.length + (serverInFlight ? 1 : 0);
+  const holdBufferedCount = queue.filter(
+    (action) => action.source === "hold",
+  ).length;
+  const serverPendingCount = serverBacklog.length + (serverInFlight ? 1 : 0);
 
   const enqueueMovement = useEffectEvent(
     (
@@ -231,10 +232,9 @@ export function GridMovementControllerVisualization() {
     setServerBacklog((currentBacklog) => [...currentBacklog, nextAction]);
 
     const nextDirection = rest[0]?.direction;
-    const message =
-      isBlocked
-        ? `${DIRECTION_META[nextAction.direction].label} blocked by obstacle.`
-        : nextDirection === nextAction.direction
+    const message = isBlocked
+      ? `${DIRECTION_META[nextAction.direction].label} blocked by obstacle.`
+      : nextDirection === nextAction.direction
         ? `Continuing ${DIRECTION_META[nextAction.direction].label} at constant speed.`
         : `Moved ${DIRECTION_META[nextAction.direction].label}.`;
     setStatusMessage(message);
@@ -248,7 +248,7 @@ export function GridMovementControllerVisualization() {
     }
 
     stepClientMotor();
-  }, [queue.length, stepClientMotor]);
+  }, [queue.length]);
 
   const restoreInFlightAction = useEffectEvent(() => {
     const currentInFlight = serverInFlightRef.current;
@@ -313,7 +313,7 @@ export function GridMovementControllerVisualization() {
 
   useEffect(() => {
     flushServerBacklog();
-  }, [flushServerBacklog, serverBacklog.length, serverInFlight, socketStatus]);
+  }, []);
 
   const onSocketMessage = useEffectEvent((event: MessageEvent<string>) => {
     let payload: ActionAckMessage | SocketErrorMessage;
@@ -441,10 +441,7 @@ export function GridMovementControllerVisualization() {
     }
 
     const target = event.target as HTMLElement | null;
-    if (
-      target &&
-      ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-    ) {
+    if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) {
       return;
     }
 
@@ -482,7 +479,7 @@ export function GridMovementControllerVisualization() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [onKeyDown, onKeyUp]);
+  }, []);
 
   useEffect(() => {
     if (activeKeys.length !== 1) {
@@ -506,7 +503,7 @@ export function GridMovementControllerVisualization() {
         window.clearInterval(intervalId);
       }
     };
-  }, [activeKeys, enqueueMovement]);
+  }, [activeKeys]);
 
   useEffect(() => {
     return () => {
@@ -577,7 +574,10 @@ export function GridMovementControllerVisualization() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-4 lg:min-w-[44rem]">
-            <MetricTile label="Queue" value={`${queue.length}/${QUEUE_CAPACITY}`} />
+            <MetricTile
+              label="Queue"
+              value={`${queue.length}/${QUEUE_CAPACITY}`}
+            />
             <MetricTile
               label="Hold stack"
               value={`${holdBufferedCount}/${HOLD_STACK_LIMIT}`}
@@ -602,7 +602,7 @@ export function GridMovementControllerVisualization() {
                 <p className="font-medium text-muted-foreground text-sm">
                   Character plane
                 </p>
-                <p className="mt-1 text-sm text-muted-foreground/80">
+                <p className="mt-1 text-muted-foreground/80 text-sm">
                   Toggle the client ball and server outline independently to
                   inspect local prediction versus delayed server authority.
                 </p>
@@ -621,56 +621,59 @@ export function GridMovementControllerVisualization() {
                 <div className="rounded-[1.75rem] border border-border/70 bg-zinc-950/45 p-4">
                   <div className="max-h-[70svh] overflow-auto overscroll-contain rounded-[1.25rem]">
                     <div className="grid aspect-square min-h-[32rem] min-w-[32rem] grid-cols-9 gap-2 sm:min-h-[36rem] sm:min-w-[36rem]">
-                      {Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, index) => {
-                        const x = index % GRID_SIZE;
-                        const y = Math.floor(index / GRID_SIZE);
-                        const isObstacle = isBlockedPosition({ x, y });
-                        const isClientCell =
-                          clientPosition.x === x && clientPosition.y === y;
-                        const isServerCell =
-                          serverPosition.x === x && serverPosition.y === y;
+                      {Array.from(
+                        { length: GRID_SIZE * GRID_SIZE },
+                        (_, index) => {
+                          const x = index % GRID_SIZE;
+                          const y = Math.floor(index / GRID_SIZE);
+                          const isObstacle = isBlockedPosition({ x, y });
+                          const isClientCell =
+                            clientPosition.x === x && clientPosition.y === y;
+                          const isServerCell =
+                            serverPosition.x === x && serverPosition.y === y;
 
-                        return (
-                          <div
-                            key={`${x}-${y}`}
-                            className={cn(
-                              "relative rounded-xl border border-white/6 bg-white/[0.03]",
-                              isObstacle &&
-                                "border-rose-400/15 bg-linear-to-br from-rose-500/20 via-red-500/12 to-stone-950/70",
-                            )}
-                          >
-                            <span className="absolute top-2 left-2 select-none text-[0.55rem] text-white/18">
-                              {x},{y}
-                            </span>
+                          return (
+                            <div
+                              key={`${x}-${y}`}
+                              className={cn(
+                                "relative rounded-xl border border-white/6 bg-white/[0.03]",
+                                isObstacle &&
+                                  "border-rose-400/15 bg-linear-to-br from-rose-500/20 via-red-500/12 to-stone-950/70",
+                              )}
+                            >
+                              <span className="absolute top-2 left-2 select-none text-[0.55rem] text-white/18">
+                                {x},{y}
+                              </span>
 
-                            {isObstacle ? (
-                              <div className="absolute inset-0 rounded-xl bg-[linear-gradient(135deg,transparent_0_42%,rgba(251,113,133,0.28)_42%_49%,transparent_49%_51%,rgba(251,113,133,0.28)_51%_58%,transparent_58%_100%)] opacity-90" />
-                            ) : null}
+                              {isObstacle ? (
+                                <div className="absolute inset-0 rounded-xl bg-[linear-gradient(135deg,transparent_0_42%,rgba(251,113,133,0.28)_42%_49%,transparent_49%_51%,rgba(251,113,133,0.28)_51%_58%,transparent_58%_100%)] opacity-90" />
+                              ) : null}
 
-                            {isClientCell && showClientState ? (
-                              <motion.div
-                                layoutId="client-player"
-                                transition={{
-                                  duration: MOVE_STEP_MS / 1000,
-                                  ease: "linear",
-                                }}
-                                className="absolute inset-3 rounded-full bg-linear-to-br from-emerald-300 via-emerald-400 to-teal-300 shadow-[0_0_0_5px_rgba(16,185,129,0.12),0_0_28px_rgba(52,211,153,0.28)]"
-                              />
-                            ) : null}
+                              {isClientCell && showClientState ? (
+                                <motion.div
+                                  layoutId="client-player"
+                                  transition={{
+                                    duration: MOVE_STEP_MS / 1000,
+                                    ease: "linear",
+                                  }}
+                                  className="absolute inset-3 rounded-full bg-linear-to-br from-emerald-300 via-emerald-400 to-teal-300 shadow-[0_0_0_5px_rgba(16,185,129,0.12),0_0_28px_rgba(52,211,153,0.28)]"
+                                />
+                              ) : null}
 
-                            {isServerCell && showServerState ? (
-                              <motion.div
-                                layoutId="server-player"
-                                transition={{
-                                  duration: MOVE_STEP_MS / 1000,
-                                  ease: "linear",
-                                }}
-                                className="absolute inset-2.5 rounded-full border-[3px] border-sky-300/90 bg-transparent shadow-[0_0_0_6px_rgba(56,189,248,0.08),0_0_34px_rgba(56,189,248,0.3)]"
-                              />
-                            ) : null}
-                          </div>
-                        );
-                      })}
+                              {isServerCell && showServerState ? (
+                                <motion.div
+                                  layoutId="server-player"
+                                  transition={{
+                                    duration: MOVE_STEP_MS / 1000,
+                                    ease: "linear",
+                                  }}
+                                  className="absolute inset-2.5 rounded-full border-[3px] border-sky-300/90 bg-transparent shadow-[0_0_0_6px_rgba(56,189,248,0.08),0_0_34px_rgba(56,189,248,0.3)]"
+                                />
+                              ) : null}
+                            </div>
+                          );
+                        },
+                      )}
                     </div>
                   </div>
 
@@ -694,42 +697,42 @@ export function GridMovementControllerVisualization() {
               <div className="flex flex-col gap-4">
                 <Panel title="Input legend" subtitle="Keyboard semantics">
                   <div className="grid grid-cols-2 gap-3">
-                    {(["up", "left", "down", "right"] as MovementDirection[]).map(
-                      (direction) => {
-                        const meta = DIRECTION_META[direction];
-                        const Icon = meta.icon;
-                        const isPressed = activeKeys.includes(direction);
+                    {(
+                      ["up", "left", "down", "right"] as MovementDirection[]
+                    ).map((direction) => {
+                      const meta = DIRECTION_META[direction];
+                      const Icon = meta.icon;
+                      const isPressed = activeKeys.includes(direction);
 
-                        return (
-                          <div
-                            key={direction}
-                            className={cn(
-                              "rounded-2xl border border-border/70 bg-muted/30 p-3 transition-colors",
-                              isPressed && "border-sky-400/45 bg-sky-400/8",
-                            )}
-                          >
-                            <div className="flex items-center gap-2">
-                              <div className="rounded-full border border-border/70 p-2">
-                                <Icon
-                                  className={cn(
-                                    "h-4 w-4",
-                                    direction === "down" && "rotate-180",
-                                  )}
-                                />
-                              </div>
-                              <div>
-                                <p className="font-semibold">{meta.keyLabel}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {meta.label}
-                                </p>
-                              </div>
+                      return (
+                        <div
+                          key={direction}
+                          className={cn(
+                            "rounded-2xl border border-border/70 bg-muted/30 p-3 transition-colors",
+                            isPressed && "border-sky-400/45 bg-sky-400/8",
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="rounded-full border border-border/70 p-2">
+                              <Icon
+                                className={cn(
+                                  "h-4 w-4",
+                                  direction === "down" && "rotate-180",
+                                )}
+                              />
+                            </div>
+                            <div>
+                              <p className="font-semibold">{meta.keyLabel}</p>
+                              <p className="text-muted-foreground text-xs">
+                                {meta.label}
+                              </p>
                             </div>
                           </div>
-                        );
-                      },
-                    )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
+                  <p className="text-muted-foreground text-sm leading-relaxed">
                     Tap once to enqueue one move. Holding a single key silently
                     tops the queue back up so straight movement keeps flowing.
                     There is only one buffered queue slot.
@@ -748,7 +751,7 @@ export function GridMovementControllerVisualization() {
                       )}
                       <div>
                         <p className="font-medium">Persistent websocket link</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-muted-foreground text-xs">
                           {socketStatus === "open"
                             ? "Connected to the simulation server."
                             : "Socket reconnects automatically if the server drops."}
@@ -765,13 +768,15 @@ export function GridMovementControllerVisualization() {
                         </div>
                         <div>
                           <p className="font-medium">Server delay</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-muted-foreground text-xs">
                             Websocket transport stays open. Only the simulated
                             authority delay changes.
                           </p>
                         </div>
                       </div>
-                      <span className="font-semibold text-lg">{serverDelayMs}ms</span>
+                      <span className="font-semibold text-lg">
+                        {serverDelayMs}ms
+                      </span>
                     </div>
                     <input
                       type="range"
@@ -799,7 +804,7 @@ export function GridMovementControllerVisualization() {
                             ? `Confirming ${DIRECTION_META[serverInFlight.action.direction].label}`
                             : "Idle"}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-muted-foreground text-xs">
                           {lastServerAckAt
                             ? `Last ack: ${new Date(lastServerAckAt).toLocaleTimeString()}`
                             : "No server response yet"}
@@ -834,9 +839,13 @@ export function GridMovementControllerVisualization() {
                       <LoaderCircle className="h-4 w-4 animate-spin text-sky-500" />
                       <div>
                         <p className="font-medium">
-                          {DIRECTION_META[serverInFlight.action.direction].label} in flight
+                          {
+                            DIRECTION_META[serverInFlight.action.direction]
+                              .label
+                          }{" "}
+                          in flight
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-muted-foreground text-xs">
                           Client already moved. Server is catching up.
                         </p>
                       </div>
@@ -853,7 +862,7 @@ export function GridMovementControllerVisualization() {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-muted-foreground text-sm">
                     The server is idle. New locally executed actions will appear
                     here until they are confirmed.
                   </p>
@@ -862,7 +871,7 @@ export function GridMovementControllerVisualization() {
             </Panel>
 
             <Panel title="Stack rules" subtitle="What this simulation enforces">
-              <div className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+              <div className="space-y-3 text-muted-foreground text-sm leading-relaxed">
                 <RuleRow label="Tap buffer">
                   Any single press adds one move, up to 1 queued action.
                 </RuleRow>
@@ -871,8 +880,8 @@ export function GridMovementControllerVisualization() {
                   move buffered.
                 </RuleRow>
                 <RuleRow label="Straight runs">
-                  Consecutive same-direction actions chain at a fixed cadence, so
-                  the player does not visibly stop between tiles.
+                  Consecutive same-direction actions chain at a fixed cadence,
+                  so the player does not visibly stop between tiles.
                 </RuleRow>
               </div>
             </Panel>
@@ -881,7 +890,7 @@ export function GridMovementControllerVisualization() {
               <div className="rounded-[1.5rem] border border-border/70 bg-background/60 p-4">
                 <p className="font-medium text-foreground">{statusMessage}</p>
                 {serverError ? (
-                  <p className="mt-3 text-sm text-red-400">{serverError}</p>
+                  <p className="mt-3 text-red-400 text-sm">{serverError}</p>
                 ) : null}
               </div>
             </Panel>
@@ -895,7 +904,7 @@ export function GridMovementControllerVisualization() {
 function MetricTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-border/70 bg-background/70 px-4 py-3 backdrop-blur">
-      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+      <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">
         {label}
       </p>
       <p className="mt-2 font-semibold text-foreground">{value}</p>
@@ -926,9 +935,7 @@ function LegendPill({
           : "border-border/50 bg-background/35 text-muted-foreground/65",
       )}
     >
-      <span
-        className={cn("h-3.5 w-3.5 rounded-full", swatchClassName)}
-      />
+      <span className={cn("h-3.5 w-3.5 rounded-full", swatchClassName)} />
       <span>{label}</span>
     </button>
   );
@@ -947,7 +954,7 @@ function Panel({
     <section className="rounded-[2rem] border border-border/70 bg-background/70 p-5 backdrop-blur">
       <div className="border-border/50 border-b pb-4">
         <p className="font-semibold text-lg">{title}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+        <p className="mt-1 text-muted-foreground text-sm">{subtitle}</p>
       </div>
       <div className="mt-4 space-y-4">{children}</div>
     </section>
@@ -967,7 +974,7 @@ function QueueSlot({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-medium">Slot {slot.slot}</p>
-          <p className="text-xs text-muted-foreground">Single queue slot</p>
+          <p className="text-muted-foreground text-xs">Single queue slot</p>
         </div>
         <span
           className={cn(
@@ -995,7 +1002,7 @@ function QueueSlot({
                 {DIRECTION_META[slot.action.direction].keyLabel} ·{" "}
                 {DIRECTION_META[slot.action.direction].label}
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 {slot.action.source === "hold"
                   ? "Generated by hold buffer"
                   : "Generated by single press"}
@@ -1010,7 +1017,7 @@ function QueueSlot({
             key={`empty-${slot.slot}`}
             initial={{ opacity: 0.4 }}
             animate={{ opacity: 1 }}
-            className="mt-4 flex min-h-[4.75rem] items-center rounded-2xl border border-dashed border-border/60 px-4 py-3 text-sm text-muted-foreground"
+            className="mt-4 flex min-h-[4.75rem] items-center rounded-2xl border border-border/60 border-dashed px-4 py-3 text-muted-foreground text-sm"
           >
             Waiting for input
           </motion.div>
@@ -1023,7 +1030,7 @@ function QueueSlot({
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-border/70 bg-background/70 p-3">
-      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+      <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">
         {label}
       </p>
       <p className="mt-2 font-semibold">{value}</p>
@@ -1070,9 +1077,7 @@ function resolveQueueUpdate(
     return {
       nextQueue: [...currentQueue, nextAction],
       statusMessage:
-        source === "hold"
-          ? null
-          : `${DIRECTION_META[direction].label} queued.`,
+        source === "hold" ? null : `${DIRECTION_META[direction].label} queued.`,
     };
   }
 

@@ -5,15 +5,12 @@ import { cn } from "@rust-research/ui/lib/utils";
 import CryptoJS from "crypto-js";
 import {
   ArrowRightLeft,
-  Github,
-  Info,
   Pause,
   Play,
   RotateCcw,
   StepForward,
 } from "lucide-react";
 import { AnimatePresence, motion, useAnimate, useInView } from "motion/react";
-import Link from "next/link";
 import {
   type RefObject,
   useCallback,
@@ -342,33 +339,9 @@ export function CipherFlowVisualization() {
 
   return (
     <div className="relative min-h-svh overflow-hidden bg-background text-foreground">
-      <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(34,211,238,0.08),transparent_35%),linear-gradient(300deg,rgba(245,158,11,0.1),transparent_45%),linear-gradient(to_right,rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.05)_1px,transparent_1px)] bg-[size:auto,auto,52px_52px,52px_52px]" />
-      <div className="relative mx-auto flex w-full max-w-[1700px] flex-col gap-5 px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
-        <header className="rounded-3xl border border-border/70 bg-background/80 px-4 py-4 backdrop-blur sm:px-6">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="mt-2 font-black text-3xl tracking-tight sm:text-4xl">
-                DES, AES, RSA
-              </h1>
-              <p className="mt-2 max-w-3xl text-muted-foreground text-sm sm:text-base">
-                Type input, set keys, then play each algorithm like a data
-                choreography. DES is fully animated first, with AES and RSA
-                structured for the next expansion.
-              </p>
-            </div>
-
-            <Link
-              href="https://github.com/zAcherttp/rust-research"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 self-start rounded-xl border border-border/70 bg-background/70 px-3 py-2 text-sm hover:bg-muted"
-            >
-              <Github className="h-4 w-4" />
-              Source
-            </Link>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-2">
+      <div className="relative mx-auto flex w-full max-w-425 flex-col gap-5 p-6">
+        <header className="rounded-3xl border border-border/70 bg-background/80 p-2 backdrop-blur">
+          <div className="flex flex-wrap gap-2">
             {(["des", "aes", "rsa"] as const).map((name) => (
               <Button
                 key={name}
@@ -396,7 +369,7 @@ export function CipherFlowVisualization() {
                 id="cipherflow-input"
                 value={textInput}
                 onChange={(event) => setTextInput(event.target.value)}
-                className="min-h-24 w-full resize-y rounded-xl border border-border/70 bg-background px-3 py-2 font-mono text-sm outline-none transition-colors focus:border-cyan-500/70"
+                className="min-h-24 w-full resize-y rounded-xl border border-border/70 bg-background px-3 py-2 font-mono text-sm outline-none transition-colors focus:border-primary/70"
                 placeholder={
                   mode === "encrypt"
                     ? "Type message"
@@ -424,7 +397,7 @@ export function CipherFlowVisualization() {
 
                     setAesKeyHex(event.target.value);
                   }}
-                  className="h-10 w-full rounded-xl border border-border/70 bg-background px-3 font-mono text-sm outline-none transition-colors focus:border-amber-500/70"
+                  className="h-10 w-full rounded-xl border border-border/70 bg-background px-3 font-mono text-sm outline-none transition-colors focus:border-primary/70"
                 />
               </div>
             ) : (
@@ -523,7 +496,7 @@ export function CipherFlowVisualization() {
                 step={0.1}
                 value={speed}
                 onChange={(event) => setSpeed(Number(event.target.value))}
-                className="w-full accent-cyan-500"
+                className="w-full accent-primary"
                 aria-label="Animation speed"
               />
             </div>
@@ -573,7 +546,7 @@ export function CipherFlowVisualization() {
               </div>
               <div className="mt-2 h-2 rounded-full bg-background">
                 <motion.div
-                  className="h-full rounded-full bg-linear-to-r from-cyan-500 via-sky-500 to-amber-500"
+                  className="h-full rounded-full bg-linear-to-r from-highlight via-highlight-strong to-chart-4"
                   animate={{
                     width:
                       maxStep > 0
@@ -597,8 +570,11 @@ export function CipherFlowVisualization() {
               <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
                 {outputTitle}
               </p>
-              <p className="mt-2 break-words font-mono text-sm leading-relaxed">
-                {outputValue || "No output yet"}
+              <p className="mt-2 font-mono text-base leading-relaxed">
+                <AnimatedValue
+                  value={outputValue || "No output yet"}
+                  className="block max-w-full whitespace-pre-wrap break-all"
+                />
               </p>
               {algorithm === "des" && (
                 <p className="mt-2 text-muted-foreground text-xs">
@@ -615,31 +591,56 @@ export function CipherFlowVisualization() {
                 Internal state
               </p>
               {algorithm === "des" ? (
-                <div className="mt-2 space-y-2 font-mono text-xs">
-                  <p>L: {currentDesStep.left}</p>
-                  <p>R: {currentDesStep.right}</p>
+                <div className="mt-2 space-y-2 font-mono text-sm">
+                  <p>
+                    L: <AnimatedValue value={currentDesStep.left} />
+                  </p>
+                  <p>
+                    R: <AnimatedValue value={currentDesStep.right} />
+                  </p>
                   {currentDesStep.phase === "round" && (
                     <>
-                      <p>E(R): {currentDesStep.expanded}</p>
-                      <p>Subkey: {currentDesStep.subKey}</p>
+                      <p>
+                        E(R): <AnimatedValue value={currentDesStep.expanded} />
+                      </p>
+                      <p>
+                        Subkey: <AnimatedValue value={currentDesStep.subKey} />
+                      </p>
                     </>
                   )}
                 </div>
               ) : algorithm === "aes" ? (
-                <p className="mt-2 font-mono text-xs">
-                  {aesPreview.states[
-                    Math.min(step, aesPreview.stages.length - 1)
-                  ]
-                    .flat()
-                    .join(" ")}
+                <p className="mt-2 font-mono text-sm">
+                  <AnimatedValue
+                    value={aesPreview.states[
+                      Math.min(step, aesPreview.stages.length - 1)
+                    ]
+                      .flat()
+                      .join(" ")}
+                  />
                 </p>
               ) : (
-                <div className="mt-2 space-y-2 font-mono text-xs">
-                  <p>n: {rsaKeys.n.toString()}</p>
-                  <p>phi(n): {rsaKeys.phi.toString()}</p>
-                  <p>Exponent bits: {rsaPreview.exponentBits.join(" ")}</p>
-                  <p>Accumulator: {currentRsaStep.accumulator.toString()}</p>
-                  <p>Base: {currentRsaStep.base.toString()}</p>
+                <div className="mt-2 space-y-2 font-mono text-sm">
+                  <p>
+                    n: <AnimatedValue value={rsaKeys.n.toString()} />
+                  </p>
+                  <p>
+                    phi(n): <AnimatedValue value={rsaKeys.phi.toString()} />
+                  </p>
+                  <p>
+                    Exponent bits:{" "}
+                    <AnimatedValue value={rsaPreview.exponentBits.join(" ")} />
+                  </p>
+                  <p>
+                    Accumulator:{" "}
+                    <AnimatedValue
+                      value={currentRsaStep.accumulator.toString()}
+                    />
+                  </p>
+                  <p>
+                    Base:{" "}
+                    <AnimatedValue value={currentRsaStep.base.toString()} />
+                  </p>
                 </div>
               )}
             </div>
@@ -700,9 +701,7 @@ function DesCanvas({
                 layout
                 animate={{
                   scale: active ? 1.06 : 1,
-                  borderColor: active
-                    ? "rgba(34,211,238,0.8)"
-                    : "rgba(148,163,184,0.3)",
+                  borderColor: active ? "var(--highlight)" : "var(--border)",
                 }}
                 transition={{ duration: 0.22 }}
                 className="rounded-lg border bg-background px-2 py-1 text-center font-mono text-[0.65rem]"
@@ -719,9 +718,9 @@ function DesCanvas({
           layout
           style={{ order: leftOrder }}
           transition={{ duration: 0.35, ease: "easeInOut" }}
-          className="rounded-2xl border border-cyan-500/35 bg-cyan-500/8 p-3"
+          className="rounded-2xl border border-highlight/35 bg-highlight/8 p-3"
         >
-          <p className="text-cyan-300 text-xs uppercase tracking-[0.18em]">
+          <p className="text-highlight text-xs uppercase tracking-[0.18em]">
             Left half
           </p>
           <NibbleRow blocks={leftBlocks} accent="cyan" />
@@ -731,9 +730,9 @@ function DesCanvas({
           layout
           style={{ order: rightOrder }}
           transition={{ duration: 0.35, ease: "easeInOut" }}
-          className="rounded-2xl border border-amber-500/35 bg-amber-500/8 p-3"
+          className="rounded-2xl border border-chart-4/35 bg-chart-4/8 p-3"
         >
-          <p className="text-amber-300 text-xs uppercase tracking-[0.18em]">
+          <p className="text-chart-4 text-xs uppercase tracking-[0.18em]">
             Right half
           </p>
           <NibbleRow blocks={rightBlocks} accent="amber" />
@@ -811,7 +810,7 @@ function AesCanvas({
               className={cn(
                 "rounded-xl border px-2 py-2 text-center text-xs uppercase tracking-[0.14em]",
                 stageIndex === index
-                  ? "border-cyan-500/60 bg-cyan-500/12"
+                  ? "border-highlight/60 bg-highlight/12"
                   : "border-border/70 bg-background/70",
               )}
             >
@@ -821,18 +820,17 @@ function AesCanvas({
         </div>
       </div>
 
-      <div className="rounded-3xl border border-emerald-500/30 bg-emerald-500/8 p-4">
+      <div className="rounded-3xl border border-border/70 p-4">
         <div className="mx-auto grid max-w-lg grid-cols-4 gap-2">
           {state.flat().map((byte, index) => (
             <motion.div
-              key={`${byte}-${index}`}
-              layout
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.22, delay: index * 0.012 }}
-              className="aspect-square rounded-lg border border-emerald-400/40 bg-black/30 p-2 text-center font-mono text-[0.7rem]"
+              key={`aes-cell-${index}`}
+              className="flex aspect-square items-center justify-center rounded-lg border border-chart-3/40 bg-chart-3/8 p-2 text-center font-mono text-lg"
             >
-              {byte}
+              <AnimatedValue
+                value={byte}
+                className="font-semibold leading-none"
+              />
             </motion.div>
           ))}
         </div>
@@ -862,13 +860,13 @@ function RsaCanvas({ preview, step }: { preview: RsaPreview; step: number }) {
             "rounded-2xl border p-3",
             isDecrypt
               ? "border-border/70 bg-muted/35"
-              : "border-sky-500/35 bg-sky-500/10",
+              : "border-highlight-strong/35 bg-highlight-strong/10",
           )}
         >
           <p
             className={cn(
               "text-xs uppercase tracking-[0.16em]",
-              isDecrypt ? "text-muted-foreground" : "text-sky-200",
+              isDecrypt ? "text-muted-foreground" : "text-highlight-strong",
             )}
           >
             Public highway
@@ -883,14 +881,14 @@ function RsaCanvas({ preview, step }: { preview: RsaPreview; step: number }) {
           className={cn(
             "rounded-2xl border p-3",
             isDecrypt
-              ? "border-amber-500/35 bg-amber-500/10"
+              ? "border-chart-4/35 bg-chart-4/10"
               : "border-border/70 bg-muted/35",
           )}
         >
           <p
             className={cn(
               "text-xs uppercase tracking-[0.16em]",
-              isDecrypt ? "text-amber-200" : "text-muted-foreground",
+              isDecrypt ? "text-chart-4" : "text-muted-foreground",
             )}
           >
             Private backdoor
@@ -913,8 +911,8 @@ function RsaCanvas({ preview, step }: { preview: RsaPreview; step: number }) {
                 scale: index === activeStepIndex ? 1.04 : 1,
                 borderColor:
                   index === activeStepIndex
-                    ? "rgba(34,211,238,0.8)"
-                    : "rgba(148,163,184,0.45)",
+                    ? "var(--highlight)"
+                    : "var(--border)",
               }}
               className="rounded-lg border bg-background px-3 py-2 text-xs"
             >
@@ -931,18 +929,20 @@ function RsaCanvas({ preview, step }: { preview: RsaPreview; step: number }) {
         <div className="mt-3 flex flex-wrap gap-2">
           {preview.exponentBits.map((bit, index) => (
             <motion.div
-              key={`${bit}-${index}`}
+              key={`rsa-bit-${index}`}
               animate={{
                 scale: index === activeBitDisplayIndex ? 1.08 : 1,
                 borderColor:
                   index === activeBitDisplayIndex
-                    ? "rgba(245,158,11,0.9)"
-                    : "rgba(148,163,184,0.45)",
+                    ? "var(--chart-4)"
+                    : "var(--border)",
               }}
               className="rounded-lg border bg-background px-3 py-2 text-center"
             >
-              <p className="font-mono text-xs">bit {index}</p>
-              <p className="font-bold text-sm">{bit}</p>
+              <p className="font-mono text-sm">bit {index}</p>
+              <p className="font-bold text-lg leading-tight">
+                <AnimatedValue value={bit} />
+              </p>
             </motion.div>
           ))}
         </div>
@@ -961,8 +961,30 @@ function PanelHeading({ title }: { title: string }) {
       <h2 className="font-semibold text-sm uppercase tracking-[0.16em]">
         {title}
       </h2>
-      <Info className="h-3.5 w-3.5 text-muted-foreground" />
     </div>
+  );
+}
+
+function AnimatedValue({
+  value,
+  className,
+}: {
+  value: string | number;
+  className?: string;
+}) {
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.span
+        key={String(value)}
+        initial={{ opacity: 0, y: 2, filter: "blur(2px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        exit={{ opacity: 0, y: -2, filter: "blur(2px)" }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        className={cn("inline-block", className)}
+      >
+        {value}
+      </motion.span>
+    </AnimatePresence>
   );
 }
 
@@ -977,19 +999,15 @@ function NibbleRow({
     <div className="mt-2 grid grid-cols-8 gap-1.5">
       {blocks.map((value, index) => (
         <motion.div
-          key={`${accent}-${value}-${index}`}
-          layout
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, delay: index * 0.01 }}
+          key={`${accent}-${index}`}
           className={cn(
-            "flex aspect-square items-center justify-center rounded-md border font-mono text-xs",
+            "flex aspect-square items-center justify-center rounded-md border font-mono text-sm",
             accent === "cyan"
-              ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-100"
-              : "border-amber-400/40 bg-amber-400/10 text-amber-100",
+              ? "border-highlight/40 bg-highlight/10 text-highlight"
+              : "border-chart-4/40 bg-chart-4/10 text-chart-4",
           )}
         >
-          {value}
+          <AnimatedValue value={value} className="leading-none" />
         </motion.div>
       ))}
     </div>
@@ -1019,11 +1037,10 @@ function OperationCard({
       <div className="mt-2 grid grid-cols-6 gap-1">
         {data.map((value, index) => (
           <motion.div
-            key={`${label}-${value}-${index}`}
-            layout
-            className="rounded border border-border/60 bg-muted/50 py-1 text-center font-mono text-[0.62rem]"
+            key={`${label}-${index}`}
+            className="rounded border border-border/60 bg-muted/50 py-1 text-center font-mono text-xs"
           >
-            {value}
+            <AnimatedValue value={value} className="leading-none" />
           </motion.div>
         ))}
       </div>

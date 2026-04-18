@@ -3,195 +3,103 @@
 import { Button } from "@rust-research/ui/components/button";
 import { cn } from "@rust-research/ui/lib/utils";
 import CryptoJS from "crypto-js";
-import {
-  ArrowRightLeft,
-  Pause,
-  Play,
-  RotateCcw,
-  StepForward,
-} from "lucide-react";
-import { AnimatePresence, motion, useAnimate, useInView } from "motion/react";
-import {
-  type RefObject,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Pause, Play, RotateCcw, StepForward } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 
-type CipherAlgorithm = "des" | "aes" | "rsa";
 type CipherMode = "encrypt" | "decrypt";
 
-type DesStepPhase = "initial" | "round" | "final";
-
-interface DesStep {
+interface AesFrame {
   id: string;
-  round: number;
-  phase: DesStepPhase;
-  left: string;
-  right: string;
-  expanded: string;
-  xored: string;
-  sboxed: string;
-  permuted: string;
-  subKey: string;
-  explanation: string;
+  label: string;
+  eyebrow: string;
+  description: string;
   formula: string;
+  state: string[][];
 }
 
-interface DesSimulationResult {
-  normalizedKey: string;
-  roundKeys: string[];
-  steps: DesStep[];
-  simulatedOutput: string;
-  realOutput: string;
-  realError: string | null;
+interface ByteDescriptor {
+  index: number;
+  hex: string;
+  decimal: number;
+  bits: string[];
+  charLabel: string;
 }
 
 interface AesPreview {
-  stages: AesStage[];
-  states: string[][][];
+  frames: AesFrame[];
+  blockHex: string;
+  blockBytes: ByteDescriptor[];
+  keyState: string[][];
+  roundOneKeyState: string[][];
   output: string;
   error: string | null;
+  blockNote: string;
+  scopeNote: string;
 }
 
-interface RsaFlowStep {
-  id: string;
-  label: string;
-  detail: string;
-  formula: string;
-  activeBitIndex: number | null;
-  accumulator: number;
-  base: number;
-  exponentRemainder: number;
-}
-
-interface RsaPreview {
-  mode: CipherMode;
-  exponentBits: string[];
-  steps: RsaFlowStep[];
-  output: string;
-  error: string | null;
-}
-
-interface RsaDemoKeyPair {
-  p: number;
-  q: number;
-  n: number;
-  phi: number;
-  e: number;
-  d: number;
-}
-
-const DES_ROUNDS = 16;
-const AES_ENCRYPT_STAGES = [
-  "SubBytes",
-  "ShiftRows",
-  "MixColumns",
-  "AddRoundKey",
-] as const;
-const AES_DECRYPT_STAGES = [
-  "InvShiftRows",
-  "InvSubBytes",
-  "AddRoundKey",
-  "InvMixColumns",
-] as const;
-type AesStage =
-  | (typeof AES_ENCRYPT_STAGES)[number]
-  | (typeof AES_DECRYPT_STAGES)[number];
-
-const INITIAL_PERMUTATION = [
-  9, 13, 3, 15, 6, 11, 1, 12, 8, 2, 14, 5, 0, 10, 4, 7,
-];
-const INVERSE_PERMUTATION = invertPermutation(INITIAL_PERMUTATION);
-const EXPANSION_TABLE = [7, 0, 1, 2, 3, 4, 3, 4, 5, 6, 7, 0];
-const PBOX_TABLE = [1, 5, 2, 0, 3, 7, 4, 6, 8, 10, 9, 11];
-const ROUND_MASK_TABLE = [0, 2, 4, 6, 7, 9, 10, 11];
-
-const DES_SBOXES: number[][] = [
-  [14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7],
-  [0, 15, 7, 4, 14, 2, 13, 1, 10, 6, 12, 11, 9, 5, 3, 8],
-  [4, 1, 14, 8, 13, 6, 2, 11, 15, 12, 9, 7, 3, 10, 5, 0],
-  [15, 12, 8, 2, 4, 9, 1, 7, 5, 11, 3, 14, 10, 0, 6, 13],
-  [15, 1, 8, 14, 6, 11, 3, 4, 9, 7, 2, 13, 12, 0, 5, 10],
-  [3, 13, 4, 7, 15, 2, 8, 14, 12, 0, 1, 10, 6, 9, 11, 5],
-  [0, 14, 7, 11, 10, 4, 13, 1, 5, 8, 12, 6, 9, 3, 2, 15],
-  [13, 8, 10, 1, 3, 15, 4, 2, 11, 6, 7, 12, 0, 5, 14, 9],
-];
+const DEFAULT_AES_KEY = "000102030405060708090A0B0C0D0E0F";
 
 const AES_SBOX = [
   0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe,
-  0xd7, 0xab, 0x76,
+  0xd7, 0xab, 0x76, 0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4,
+  0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0, 0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7,
+  0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15, 0x04, 0xc7, 0x23, 0xc3,
+  0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75, 0x09,
+  0x83, 0x2c, 0x1a, 0x1b, 0x6e, 0x5a, 0xa0, 0x52, 0x3b, 0xd6, 0xb3, 0x29, 0xe3,
+  0x2f, 0x84, 0x53, 0xd1, 0x00, 0xed, 0x20, 0xfc, 0xb1, 0x5b, 0x6a, 0xcb, 0xbe,
+  0x39, 0x4a, 0x4c, 0x58, 0xcf, 0xd0, 0xef, 0xaa, 0xfb, 0x43, 0x4d, 0x33, 0x85,
+  0x45, 0xf9, 0x02, 0x7f, 0x50, 0x3c, 0x9f, 0xa8, 0x51, 0xa3, 0x40, 0x8f, 0x92,
+  0x9d, 0x38, 0xf5, 0xbc, 0xb6, 0xda, 0x21, 0x10, 0xff, 0xf3, 0xd2, 0xcd, 0x0c,
+  0x13, 0xec, 0x5f, 0x97, 0x44, 0x17, 0xc4, 0xa7, 0x7e, 0x3d, 0x64, 0x5d, 0x19,
+  0x73, 0x60, 0x81, 0x4f, 0xdc, 0x22, 0x2a, 0x90, 0x88, 0x46, 0xee, 0xb8, 0x14,
+  0xde, 0x5e, 0x0b, 0xdb, 0xe0, 0x32, 0x3a, 0x0a, 0x49, 0x06, 0x24, 0x5c, 0xc2,
+  0xd3, 0xac, 0x62, 0x91, 0x95, 0xe4, 0x79, 0xe7, 0xc8, 0x37, 0x6d, 0x8d, 0xd5,
+  0x4e, 0xa9, 0x6c, 0x56, 0xf4, 0xea, 0x65, 0x7a, 0xae, 0x08, 0xba, 0x78, 0x25,
+  0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
+  0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86,
+  0xc1, 0x1d, 0x9e, 0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e,
+  0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf, 0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42,
+  0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16,
 ];
-const AES_INV_SBOX = new Map<number, number>(
-  AES_SBOX.map((value, index) => [value, index]),
-);
 
-const DEFAULT_DES_KEY = "133457799BBCDFF1";
-const DEFAULT_AES_KEY = "000102030405060708090A0B0C0D0E0F";
-
-const RSA_PRIMES = [
-  53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107,
-] as const;
+const AES_INV_SBOX = buildInverseSBox(AES_SBOX);
+const AES_RCON = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
 
 export function CipherFlowVisualization() {
-  const [algorithm, setAlgorithm] = useState<CipherAlgorithm>("des");
   const [mode, setMode] = useState<CipherMode>("encrypt");
   const [textInput, setTextInput] = useState("CipherFlow demo");
-  const [desKeyHex, setDesKeyHex] = useState(DEFAULT_DES_KEY);
   const [aesKeyHex, setAesKeyHex] = useState(DEFAULT_AES_KEY);
   const [step, setStep] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [rsaKeys, setRsaKeys] = useState<RsaDemoKeyPair>(() =>
-    createRsaDemoKeyPair(),
-  );
+  const previousBlockHexRef = useRef<string | null>(null);
 
-  const canvasRef = useRef<HTMLDivElement | null>(null);
-  const operationsRef = useRef<HTMLDivElement | null>(null);
-  const canvasVisible = useInView(canvasRef, { once: true, amount: 0.2 });
-  const [, animateOperations] = useAnimate();
+  const preview = buildAesPreview(textInput, aesKeyHex, mode);
+  const previousBlockHex = previousBlockHexRef.current ?? preview.blockHex;
+  const previousBlockPairs = previousBlockHex.match(/.{1,2}/g) ?? [];
 
-  const desSimulation = useMemo<DesSimulationResult>(() => {
-    return buildDesSimulation(textInput, desKeyHex, mode);
-  }, [textInput, desKeyHex, mode]);
+  const maxStep = Math.max(0, preview.frames.length - 1);
+  const stageIndex = Math.min(step, maxStep);
+  const currentFrame = preview.frames[stageIndex] ?? preview.frames[0];
+  const previousFrame =
+    preview.frames[Math.max(0, stageIndex - 1)] ?? currentFrame;
 
-  const aesPreview = useMemo<AesPreview>(() => {
-    return buildAesPreview(textInput, aesKeyHex, mode);
-  }, [textInput, aesKeyHex, mode]);
-
-  const aesStages = aesPreview.stages;
-
-  const rsaPreview = useMemo<RsaPreview>(() => {
-    return buildRsaPreview(textInput, rsaKeys, mode);
-  }, [textInput, rsaKeys, mode]);
-
-  const maxStep = useMemo(() => {
-    if (algorithm === "des") {
-      return Math.max(0, desSimulation.steps.length - 1);
-    }
-
-    if (algorithm === "aes") {
-      return Math.max(0, aesStages.length - 1);
-    }
-
-    return Math.max(0, rsaPreview.steps.length - 1);
-  }, [
-    aesStages.length,
-    algorithm,
-    desSimulation.steps.length,
-    rsaPreview.steps.length,
-  ]);
-
-  const currentDesStep = desSimulation.steps[Math.min(step, maxStep)];
-  const currentAesStage = aesStages[Math.min(step, aesStages.length - 1)];
-  const currentRsaStep = rsaPreview.steps[Math.min(step, maxStep)];
+  const outputTitle = mode === "encrypt" ? "Ciphertext" : "Plaintext";
+  const inputTitle = mode === "encrypt" ? "Plaintext" : "Cipher input";
+  const inputPlaceholder =
+    mode === "encrypt"
+      ? "Type plaintext. Matrix shows the first 16 bytes."
+      : "Paste ciphertext hex. Matrix uses the first 32 hex chars.";
+  const inputConstraintCopy =
+    mode === "encrypt"
+      ? "128-bit state: only the first 16 UTF-8 bytes are shown."
+      : "Needs 32 hex chars. Non-hex is removed, short input is zero-padded.";
 
   useEffect(() => {
     setStep(0);
     setIsPlaying(false);
-  }, []);
+  }, [mode, textInput, aesKeyHex]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -207,219 +115,73 @@ export function CipherFlowVisualization() {
       () => {
         setStep((previous) => Math.min(previous + 1, maxStep));
       },
-      Math.max(180, 900 / Math.max(0.3, speed)),
+      Math.max(180, 880 / Math.max(0.3, speed)),
     );
 
     return () => window.clearTimeout(timeout);
   }, [isPlaying, maxStep, speed, step]);
 
   useEffect(() => {
-    if (algorithm !== "des") {
-      return;
-    }
-
-    if (currentDesStep?.phase !== "round") {
-      return;
-    }
-
-    const operationPanel = operationsRef.current;
-
-    if (!operationPanel) {
-      return;
-    }
-
-    void animateOperations(
-      operationPanel,
-      { scale: [1, 1.015, 1], opacity: [0.9, 1, 0.95, 1] },
-      { duration: 0.45, ease: "easeInOut" },
-    );
-  }, [algorithm, animateOperations, currentDesStep?.phase]);
-
-  const outputTitle = mode === "encrypt" ? "Ciphertext" : "Plaintext";
-
-  const outputValue =
-    algorithm === "des"
-      ? desSimulation.realOutput
-      : algorithm === "aes"
-        ? aesPreview.output
-        : rsaPreview.output;
-
-  const outputError =
-    algorithm === "des"
-      ? desSimulation.realError
-      : algorithm === "aes"
-        ? aesPreview.error
-        : rsaPreview.error;
-
-  const explanation = useMemo(() => {
-    if (algorithm === "des") {
-      return {
-        title:
-          currentDesStep.phase === "initial"
-            ? "Initial permutation and split"
-            : currentDesStep.phase === "final"
-              ? "Final swap and inverse permutation"
-              : `Round ${currentDesStep.round}`,
-        body: currentDesStep.explanation,
-        formula: currentDesStep.formula,
-      };
-    }
-
-    if (algorithm === "aes") {
-      const stageCopy: Record<AesStage, string> = {
-        SubBytes:
-          "Each byte is replaced through an S-box lookup to increase non-linearity and break simple patterns.",
-        ShiftRows:
-          "Rows rotate by different offsets so bytes influence neighboring columns in later operations.",
-        MixColumns:
-          "Each column is mixed using finite-field math so every byte depends on the full column.",
-        AddRoundKey:
-          "The round key is XORed into state; without the key schedule this transformation is not reversible.",
-        InvShiftRows:
-          "Rows shift in the opposite direction to reverse byte displacement from encryption rounds.",
-        InvSubBytes:
-          "The inverse S-box restores byte values to unwind the non-linear substitution layer.",
-        InvMixColumns:
-          "Inverse column mixing removes diffusion added during encryption rounds.",
-      };
-
-      return {
-        title: currentAesStage,
-        body: stageCopy[currentAesStage],
-        formula: "State' = Transform(State)",
-      };
-    }
-
-    return {
-      title: currentRsaStep.label,
-      body: currentRsaStep.detail,
-      formula: currentRsaStep.formula,
-    };
-  }, [algorithm, currentAesStage, currentDesStep, currentRsaStep]);
-
-  const activeRound =
-    algorithm === "des" && currentDesStep.phase === "round"
-      ? currentDesStep.round
-      : 0;
-
-  const handleStep = useCallback(() => {
-    setIsPlaying(false);
-    setStep((previous) => Math.min(previous + 1, maxStep));
-  }, [maxStep]);
-
-  const handleReset = useCallback(() => {
-    setIsPlaying(false);
-    setStep(0);
-  }, []);
-
-  const generateRsaKeys = useCallback(() => {
-    setRsaKeys(createRsaDemoKeyPair());
-  }, []);
-
-  useEffect(() => {
-    const hasNonIntegerKeyMaterial =
-      !Number.isInteger(rsaKeys.n) ||
-      !Number.isInteger(rsaKeys.phi) ||
-      !Number.isInteger(rsaKeys.e) ||
-      !Number.isInteger(rsaKeys.d);
-
-    const invalidModulus = rsaKeys.n <= 1 || rsaKeys.phi <= 1;
-    const invalidCoprime = gcd(rsaKeys.e, rsaKeys.phi) !== 1;
-    const invalidInverse = (rsaKeys.e * rsaKeys.d) % rsaKeys.phi !== 1;
-
-    if (
-      hasNonIntegerKeyMaterial ||
-      invalidModulus ||
-      invalidCoprime ||
-      invalidInverse
-    ) {
-      setRsaKeys(createRsaDemoKeyPair());
-    }
-  }, [rsaKeys]);
+    previousBlockHexRef.current = preview.blockHex;
+  }, [preview.blockHex]);
 
   return (
-    <div className="relative min-h-svh overflow-hidden bg-background text-foreground">
-      <div className="relative mx-auto flex w-full max-w-425 flex-col gap-5 p-6">
-        <header className="rounded-3xl border border-border/70 bg-background/80 p-2 backdrop-blur">
-          <div className="flex flex-wrap gap-2">
-            {(["des", "aes", "rsa"] as const).map((name) => (
-              <Button
-                key={name}
-                onClick={() => setAlgorithm(name)}
-                variant={algorithm === name ? "default" : "outline"}
-                className="rounded-xl px-4 py-2 font-semibold uppercase tracking-[0.14em]"
-              >
-                {name}
-              </Button>
-            ))}
+    <div className="h-[100svh] overflow-hidden bg-background text-foreground">
+      <div className="mx-auto grid h-full w-full max-w-[1800px] grid-cols-[17rem_minmax(0,1fr)] gap-3 p-3">
+        <aside className="flex min-h-0 flex-col gap-3 rounded-[1.5rem] border border-border/70 bg-background p-4">
+          <div className="border-border/70 border-b pb-3">
+            {/* <p className="text-[0.68rem] text-cyan-300 uppercase tracking-[0.2em]">
+              CipherFlow
+            </p> */}
+            <h1 className="mt-2 font-semibold text-lg tracking-tight">
+              AES-128
+            </h1>
+            {/* <p className="mt-1 text-[0.72rem] text-muted-foreground">
+              AES-128 teaching lens: first block, guided round flow.
+            </p>
+            <p className="mt-2 text-muted-foreground text-sm leading-5">
+              One block, one round, one selected byte.
+            </p> */}
           </div>
-        </header>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,20%)_minmax(0,1fr)_minmax(0,20%)]">
-          <aside className="space-y-4 rounded-3xl border border-border/70 bg-background/85 p-4 backdrop-blur">
-            <PanelHeading title="Input" />
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
             <div className="space-y-2">
               <label
                 htmlFor="cipherflow-input"
                 className="text-muted-foreground text-xs uppercase tracking-[0.16em]"
               >
-                {mode === "encrypt" ? "Plaintext" : "Cipher input"}
+                {inputTitle}
               </label>
               <textarea
                 id="cipherflow-input"
                 value={textInput}
                 onChange={(event) => setTextInput(event.target.value)}
-                className="min-h-24 w-full resize-y rounded-xl border border-border/70 bg-background px-3 py-2 font-mono text-sm outline-none transition-colors focus:border-primary/70"
-                placeholder={
-                  mode === "encrypt"
-                    ? "Type message"
-                    : "Enter hex for DES/AES or RSA blocks (e.g. 123 456)"
-                }
+                className="h-28 w-full resize-none rounded-2xl border border-border/70 bg-background px-3 py-3 font-mono text-sm outline-none transition-colors focus:border-cyan-400/60"
+                placeholder={inputPlaceholder}
               />
+              <p className="text-[0.72rem] text-muted-foreground leading-5">
+                {inputConstraintCopy}
+              </p>
             </div>
 
-            {algorithm !== "rsa" ? (
-              <div className="space-y-2">
-                <label
-                  htmlFor="cipherflow-key"
-                  className="text-muted-foreground text-xs uppercase tracking-[0.16em]"
-                >
-                  {algorithm === "des" ? "DES key (hex)" : "AES key (hex)"}
-                </label>
-                <input
-                  id="cipherflow-key"
-                  value={algorithm === "des" ? desKeyHex : aesKeyHex}
-                  onChange={(event) => {
-                    if (algorithm === "des") {
-                      setDesKeyHex(event.target.value);
-                      return;
-                    }
-
-                    setAesKeyHex(event.target.value);
-                  }}
-                  className="h-10 w-full rounded-xl border border-border/70 bg-background px-3 font-mono text-sm outline-none transition-colors focus:border-primary/70"
-                />
-              </div>
-            ) : (
-              <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/30 p-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
-                    RSA key pair
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-lg"
-                    onClick={generateRsaKeys}
-                  >
-                    Regenerate
-                  </Button>
-                </div>
-                <p className="font-mono text-xs">n = {rsaKeys.n.toString()}</p>
-                <p className="font-mono text-xs">e = {rsaKeys.e.toString()}</p>
-                <p className="font-mono text-xs">d = {rsaKeys.d.toString()}</p>
-              </div>
-            )}
+            <div className="space-y-2">
+              <label
+                htmlFor="cipherflow-key"
+                className="text-muted-foreground text-xs uppercase tracking-[0.16em]"
+              >
+                AES key (hex, 32 chars)
+              </label>
+              <input
+                id="cipherflow-key"
+                value={aesKeyHex}
+                onChange={(event) => setAesKeyHex(event.target.value)}
+                className="h-10 w-full rounded-2xl border border-border/70 bg-background px-3 font-mono text-sm outline-none transition-colors focus:border-cyan-400/60"
+                placeholder={DEFAULT_AES_KEY}
+              />
+              <p className="text-[0.72rem] text-muted-foreground leading-5">
+                Non-hex is removed. Missing nybbles are zero-padded.
+              </p>
+            </div>
 
             <div className="space-y-2">
               <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
@@ -428,14 +190,14 @@ export function CipherFlowVisualization() {
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant={mode === "encrypt" ? "default" : "outline"}
-                  className="rounded-lg"
+                  className="rounded-xl"
                   onClick={() => setMode("encrypt")}
                 >
                   Encrypt
                 </Button>
                 <Button
                   variant={mode === "decrypt" ? "default" : "outline"}
-                  className="rounded-lg"
+                  className="rounded-xl"
                   onClick={() => setMode("decrypt")}
                 >
                   Decrypt
@@ -445,11 +207,11 @@ export function CipherFlowVisualization() {
 
             <div className="space-y-2">
               <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
-                Controls
+                Playback
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <Button
-                  className="rounded-lg"
+                  className="rounded-xl"
                   onClick={() => setIsPlaying(true)}
                   disabled={step >= maxStep}
                 >
@@ -458,7 +220,7 @@ export function CipherFlowVisualization() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="rounded-lg"
+                  className="rounded-xl"
                   onClick={() => setIsPlaying(false)}
                 >
                   <Pause className="h-3.5 w-3.5" />
@@ -466,8 +228,11 @@ export function CipherFlowVisualization() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="rounded-lg"
-                  onClick={handleStep}
+                  className="rounded-xl"
+                  onClick={() => {
+                    setIsPlaying(false);
+                    setStep((previous) => Math.min(previous + 1, maxStep));
+                  }}
                   disabled={step >= maxStep}
                 >
                   <StepForward className="h-3.5 w-3.5" />
@@ -475,8 +240,11 @@ export function CipherFlowVisualization() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="rounded-lg"
-                  onClick={handleReset}
+                  className="rounded-xl"
+                  onClick={() => {
+                    setIsPlaying(false);
+                    setStep(0);
+                  }}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   Reset
@@ -486,7 +254,7 @@ export function CipherFlowVisualization() {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between text-muted-foreground text-xs uppercase tracking-[0.16em]">
-                <span>Playback speed</span>
+                <span>Speed</span>
                 <span>{speed.toFixed(1)}x</span>
               </div>
               <input
@@ -496,460 +264,401 @@ export function CipherFlowVisualization() {
                 step={0.1}
                 value={speed}
                 onChange={(event) => setSpeed(Number(event.target.value))}
-                className="w-full accent-primary"
+                className="w-full accent-cyan-400"
                 aria-label="Animation speed"
               />
             </div>
-          </aside>
 
-          <main
-            ref={canvasRef}
-            className="overflow-hidden rounded-3xl border border-border/70 bg-background/85 p-4 backdrop-blur sm:p-5"
-          >
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={algorithm}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{
-                  opacity: canvasVisible ? 1 : 0,
-                  y: canvasVisible ? 0 : 10,
-                }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.28, ease: "easeOut" }}
-                className="space-y-4"
-              >
-                {algorithm === "des" ? (
-                  <DesCanvas
-                    currentStep={currentDesStep}
-                    roundKeys={desSimulation.roundKeys}
-                    mode={mode}
-                    operationsRef={operationsRef}
-                  />
-                ) : algorithm === "aes" ? (
-                  <AesCanvas
-                    states={aesPreview.states}
-                    stages={aesPreview.stages}
-                    stageIndex={Math.min(step, aesPreview.stages.length - 1)}
-                  />
-                ) : (
-                  <RsaCanvas preview={rsaPreview} step={step} />
-                )}
-              </motion.div>
-            </AnimatePresence>
+            <div className="rounded-2xl border border-border/70 bg-muted/30 p-3">
+              <p className="text-[0.62rem] text-muted-foreground uppercase tracking-[0.18em]">
+                Scope
+              </p>
+              <p className="mt-2 text-muted-foreground text-sm leading-5">
+                {preview.blockNote}
+              </p>
+            </div>
+          </div>
+        </aside>
 
-            <div className="mt-5 rounded-2xl border border-border/70 bg-muted/35 p-3">
-              <div className="flex items-center justify-between text-muted-foreground text-xs uppercase tracking-[0.16em]">
-                <span>{algorithm.toUpperCase()} Progress</span>
-                <span>
-                  Step {Math.min(step, maxStep)} / {maxStep}
-                </span>
+        <main className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 rounded-[1.5rem] border border-border/70 bg-background p-4">
+          <section className="rounded-[1.25rem] border border-border/70 bg-muted/25 p-3">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[0.62rem] text-cyan-300 uppercase tracking-[0.18em]">
+                  Data path
+                </p>
+                <p className="mt-1 text-muted-foreground text-sm">
+                  Track how 16 input bytes become the AES state.
+                </p>
               </div>
-              <div className="mt-2 h-2 rounded-full bg-background">
-                <motion.div
-                  className="h-full rounded-full bg-linear-to-r from-highlight via-highlight-strong to-chart-4"
-                  animate={{
-                    width:
-                      maxStep > 0
-                        ? `${(Math.min(step, maxStep) / maxStep) * 100}%`
-                        : "0%",
+              <p className="font-mono text-[0.68rem] text-muted-foreground uppercase tracking-[0.16em]">
+                Step {stageIndex} / {maxStep}
+              </p>
+            </div>
+
+            <div className="mt-3 grid grid-cols-6 gap-2">
+              {preview.frames.map((frame, index) => (
+                <motion.button
+                  key={frame.id}
+                  type="button"
+                  onClick={() => {
+                    setIsPlaying(false);
+                    setStep(index);
                   }}
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  animate={{
+                    scale: stageIndex === index ? 1.02 : 1,
+                    opacity: stageIndex === index ? 1 : 0.55,
+                  }}
+                  className={cn(
+                    "rounded-xl border px-2 py-2 text-left transition-colors",
+                    stageIndex === index
+                      ? "border-cyan-400/45 bg-cyan-400/10"
+                      : "border-border/70 bg-background hover:border-border",
+                  )}
+                >
+                  <p className="text-[0.58rem] text-muted-foreground uppercase tracking-[0.18em]">
+                    {frame.eyebrow}
+                  </p>
+                  <p className="mt-1 font-semibold text-xs leading-4">
+                    {frame.label}
+                  </p>
+                </motion.button>
+              ))}
+            </div>
+
+            <div className="mt-3 h-1.5 rounded-full bg-background">
+              <motion.div
+                className="h-full rounded-full bg-cyan-400"
+                animate={{
+                  width:
+                    maxStep > 0
+                      ? `${(Math.min(stageIndex, maxStep) / maxStep) * 100}%`
+                      : "0%",
+                }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+              />
+            </div>
+          </section>
+
+          <section className="grid min-h-0 grid-cols-[minmax(0,1fr)_18rem] gap-3">
+            <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 rounded-[1.25rem] border border-border/70 bg-muted/20 p-4">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-[0.62rem] text-cyan-300 uppercase tracking-[0.18em]">
+                    Current state
+                  </p>
+                  <p className="mt-1 text-muted-foreground text-sm">
+                    Changed cells pulse when the current step rewrites bytes.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex min-h-0 items-center justify-center">
+                <AesStateBoard
+                  currentState={currentFrame.state}
+                  previousState={previousFrame.state}
                 />
               </div>
-              {algorithm === "des" && (
-                <p className="mt-2 text-muted-foreground text-xs">
-                  Round {activeRound} / {DES_ROUNDS}
-                </p>
-              )}
-            </div>
-          </main>
 
-          <aside className="space-y-4 rounded-3xl border border-border/70 bg-background/85 p-4 backdrop-blur">
+              <div className="rounded-2xl border border-border/70 bg-background p-3">
+                <p className="text-[0.62rem] text-muted-foreground uppercase tracking-[0.18em]">
+                  Input bytes
+                </p>
+                <div className="mt-3 grid grid-cols-8 gap-2">
+                  {preview.blockBytes.map((byte) => {
+                    const changed =
+                      (previousBlockPairs[byte.index] ?? "") !== byte.hex;
+
+                    return (
+                      <motion.div
+                        key={byte.index}
+                        animate={{ y: changed ? [-2, 0] : 0 }}
+                        transition={{ duration: 0.22, ease: "easeOut" }}
+                        className={cn(
+                          "rounded-md border px-2 py-2 text-left transition-colors",
+                          changed
+                            ? "border-amber-400/35 bg-amber-400/10"
+                            : "border-border/70 bg-muted/20",
+                        )}
+                      >
+                        <p className="text-[0.55rem] text-muted-foreground uppercase tracking-[0.16em]">
+                          b{byte.index.toString().padStart(2, "0")}
+                        </p>
+                        <p className="mt-1 font-mono font-semibold text-sm">
+                          {byte.hex}
+                        </p>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3">
+              <section className="rounded-[1.25rem] border border-border/70 bg-muted/20 p-4">
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={currentFrame.id}
+                    initial={{ opacity: 0, y: 6, filter: "blur(3px)" }}
+                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                    exit={{ opacity: 0, y: -4, filter: "blur(3px)" }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="space-y-3"
+                  >
+                    <div>
+                      <p className="text-[0.62rem] text-cyan-300 uppercase tracking-[0.18em]">
+                        {currentFrame.eyebrow}
+                      </p>
+                      <h2 className="mt-1 font-semibold text-lg">
+                        {currentFrame.label}
+                      </h2>
+                    </div>
+                    <p className="text-muted-foreground text-sm leading-5">
+                      {currentFrame.description}
+                    </p>
+                    <div className="rounded-xl border border-border/70 bg-background px-3 py-2 font-mono text-foreground text-xs">
+                      {currentFrame.formula}
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </section>
+
+              <div className="grid grid-cols-2 gap-3">
+                <SmallStateCard
+                  label="Round-0 key"
+                  state={preview.keyState}
+                  accentClassName="border-cyan-400/20 bg-cyan-400/8"
+                />
+                <SmallStateCard
+                  label="Round-1 key"
+                  state={preview.roundOneKeyState}
+                  accentClassName="border-amber-400/20 bg-amber-400/8"
+                />
+              </div>
+
+              {/* <section className="rounded-[1.25rem] border border-border/70 bg-muted/20 p-4">
+                <PanelHeading title="Normalized block" />
+                <p className="mt-3 break-all font-mono text-sm leading-6">
+                  <AnimatedValue value={preview.blockHex} />
+                </p>
+                <p className="mt-2 text-muted-foreground text-xs leading-5">
+                  Sanitized first block in hex (16 bytes / 32 hex chars).
+                </p>
+              </section> */}
+              <section className="rounded-[1.25rem] border border-border/70 bg-muted/20 p-4">
+                <PanelHeading title="Output" />
+
+                <div className="mt-3 rounded-2xl border border-border/70 bg-background p-3">
+                  <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
+                    {outputTitle}
+                  </p>
+                  <p className="mt-2 font-mono text-sm leading-6">
+                    <AnimatedValue
+                      value={preview.output || "No output yet"}
+                      className="block max-w-full whitespace-pre-wrap break-all"
+                    />
+                  </p>
+                  {preview.error && (
+                    <p className="mt-2 text-destructive text-xs">
+                      {preview.error}
+                    </p>
+                  )}
+                </div>
+              </section>
+            </div>
+          </section>
+        </main>
+
+        {/* <aside className="grid min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-3 rounded-[1.5rem] border border-border/70 bg-background p-4"> */}
+        {/* <section className="rounded-[1.25rem] border border-border/70 bg-muted/20 p-4">
             <PanelHeading title="Output" />
-            <div className="rounded-2xl border border-border/70 bg-muted/35 p-3">
+
+            <div className="mt-3 rounded-2xl border border-border/70 bg-background p-3">
               <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
                 {outputTitle}
               </p>
-              <p className="mt-2 font-mono text-base leading-relaxed">
+              <p className="mt-2 font-mono text-sm leading-6">
                 <AnimatedValue
-                  value={outputValue || "No output yet"}
+                  value={preview.output || "No output yet"}
                   className="block max-w-full whitespace-pre-wrap break-all"
                 />
               </p>
-              {algorithm === "des" && (
-                <p className="mt-2 text-muted-foreground text-xs">
-                  Simulator output: {desSimulation.simulatedOutput}
-                </p>
-              )}
-              {outputError && (
-                <p className="mt-2 text-destructive text-xs">{outputError}</p>
+              {preview.error && (
+                <p className="mt-2 text-destructive text-xs">{preview.error}</p>
               )}
             </div>
+          </section> */}
 
-            <div className="rounded-2xl border border-border/70 bg-muted/35 p-3">
-              <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
-                Internal state
-              </p>
-              {algorithm === "des" ? (
-                <div className="mt-2 space-y-2 font-mono text-sm">
-                  <p>
-                    L: <AnimatedValue value={currentDesStep.left} />
-                  </p>
-                  <p>
-                    R: <AnimatedValue value={currentDesStep.right} />
-                  </p>
-                  {currentDesStep.phase === "round" && (
-                    <>
-                      <p>
-                        E(R): <AnimatedValue value={currentDesStep.expanded} />
-                      </p>
-                      <p>
-                        Subkey: <AnimatedValue value={currentDesStep.subKey} />
-                      </p>
-                    </>
-                  )}
-                </div>
-              ) : algorithm === "aes" ? (
-                <p className="mt-2 font-mono text-sm">
-                  <AnimatedValue
-                    value={aesPreview.states[
-                      Math.min(step, aesPreview.stages.length - 1)
-                    ]
-                      .flat()
-                      .join(" ")}
-                  />
+        {/* <section className="rounded-[1.25rem] border border-border/70 bg-muted/20 p-4">
+            <PanelHeading title="Byte inspector" />
+            <p className="mt-2 text-muted-foreground text-xs leading-5">
+              Shows the selected byte before/after this step and its source
+              slot.
+            </p>
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <InspectorStat label="Previous" value={selectedPreviousByte} />
+                <InspectorStat label="Current" value={selectedCurrentByte} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <InspectorStat
+                  label="Decimal"
+                  value={Number.parseInt(selectedCurrentByte, 16).toString()}
+                />
+                <InspectorStat label="Source" value={selectedSourceByte.hex} />
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background p-3">
+                <p className="text-[0.62rem] text-muted-foreground uppercase tracking-[0.18em]">
+                  Original slot
                 </p>
-              ) : (
-                <div className="mt-2 space-y-2 font-mono text-sm">
-                  <p>
-                    n: <AnimatedValue value={rsaKeys.n.toString()} />
-                  </p>
-                  <p>
-                    phi(n): <AnimatedValue value={rsaKeys.phi.toString()} />
-                  </p>
-                  <p>
-                    Exponent bits:{" "}
-                    <AnimatedValue value={rsaPreview.exponentBits.join(" ")} />
-                  </p>
-                  <p>
-                    Accumulator:{" "}
-                    <AnimatedValue
-                      value={currentRsaStep.accumulator.toString()}
-                    />
-                  </p>
-                  <p>
-                    Base:{" "}
-                    <AnimatedValue value={currentRsaStep.base.toString()} />
-                  </p>
-                </div>
-              )}
+                <p className="mt-1 text-sm">{selectedSourceByte.charLabel}</p>
+                <p className="mt-2 font-mono text-muted-foreground text-xs">
+                  byte {selectedLinearIndex} | row {selectedCell.row} | col{" "}
+                  {selectedCell.col}
+                </p>
+              </div>
             </div>
+          </section> */}
 
-            <div className="rounded-2xl border border-border/70 bg-muted/35 p-3">
-              <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
-                What just happened?
-              </p>
-              <p className="mt-2 font-semibold text-sm">{explanation.title}</p>
-              <p className="mt-2 text-muted-foreground text-sm leading-relaxed">
-                {explanation.body}
-              </p>
-              <p className="mt-3 rounded-lg bg-background px-2 py-1 font-mono text-xs">
-                {explanation.formula}
-              </p>
-            </div>
-          </aside>
-        </section>
+        {/* <section className="rounded-[1.25rem] border border-border/70 bg-muted/20 p-4">
+            <PanelHeading title="Quick notes" />
+            <ul className="mt-3 space-y-2 text-muted-foreground text-sm leading-5">
+              <li>Current state is the matrix output of the selected step.</li>
+              <li>
+                Data path buttons show how bytes move through AES transforms.
+              </li>
+              <li>
+                Normalized block is the sanitized first 16-byte input block.
+              </li>
+              <li>{preview.scopeNote}</li>
+            </ul>
+          </section> */}
+        {/* </aside> */}
       </div>
     </div>
   );
 }
 
-function DesCanvas({
-  currentStep,
-  roundKeys,
-  mode,
-  operationsRef,
+function AesStateBoard({
+  currentState,
+  previousState,
 }: {
-  currentStep: DesStep;
-  roundKeys: string[];
-  mode: CipherMode;
-  operationsRef: RefObject<HTMLDivElement | null>;
+  currentState: string[][];
+  previousState: string[][];
 }) {
-  const leftBlocks = splitChars(currentStep.left, 8);
-  const rightBlocks = splitChars(currentStep.right, 8);
-  const shouldSwap = currentStep.phase === "round";
-  const leftOrder = shouldSwap && currentStep.round % 2 === 1 ? 2 : 1;
-  const rightOrder = shouldSwap && currentStep.round % 2 === 1 ? 1 : 2;
-
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-border/70 bg-muted/40 p-3">
-        <div className="mb-2 flex items-center justify-between text-muted-foreground text-xs uppercase tracking-[0.16em]">
-          <span>DES key schedule</span>
-          <span className="inline-flex items-center gap-1">
-            <ArrowRightLeft className="h-3.5 w-3.5" />
-            {mode === "encrypt" ? "forward" : "reversed"}
-          </span>
-        </div>
-        <div className="grid grid-cols-4 gap-2 md:grid-cols-8 xl:grid-cols-16">
-          {roundKeys.map((subKey, index) => {
-            const active =
-              currentStep.phase === "round" && currentStep.round - 1 === index;
-            return (
-              <motion.div
-                key={subKey + index}
-                layout
-                animate={{
-                  scale: active ? 1.06 : 1,
-                  borderColor: active ? "var(--highlight)" : "var(--border)",
-                }}
-                transition={{ duration: 0.22 }}
-                className="rounded-lg border bg-background px-2 py-1 text-center font-mono text-[0.65rem]"
-              >
-                K{index + 1}
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
+    <div className="space-y-3">
+      <div className="grid grid-cols-[auto_repeat(4,minmax(0,1fr))] gap-2">
+        <div />
+        {[0, 1, 2, 3].map((column) => (
+          <div
+            key={`col-${column}`}
+            className="px-2 text-center text-[0.62rem] text-muted-foreground uppercase tracking-[0.18em]"
+          >
+            C{column}
+          </div>
+        ))}
 
-      <div className="grid gap-3 lg:grid-cols-[1fr_1fr]">
-        <motion.div
-          layout
-          style={{ order: leftOrder }}
-          transition={{ duration: 0.35, ease: "easeInOut" }}
-          className="rounded-2xl border border-highlight/35 bg-highlight/8 p-3"
-        >
-          <p className="text-highlight text-xs uppercase tracking-[0.18em]">
-            Left half
-          </p>
-          <NibbleRow blocks={leftBlocks} accent="cyan" />
-        </motion.div>
-
-        <motion.div
-          layout
-          style={{ order: rightOrder }}
-          transition={{ duration: 0.35, ease: "easeInOut" }}
-          className="rounded-2xl border border-chart-4/35 bg-chart-4/8 p-3"
-        >
-          <p className="text-chart-4 text-xs uppercase tracking-[0.18em]">
-            Right half
-          </p>
-          <NibbleRow blocks={rightBlocks} accent="amber" />
-        </motion.div>
-      </div>
-
-      <motion.div
-        ref={operationsRef}
-        className="space-y-2 rounded-2xl border border-border/70 bg-muted/40 p-3"
-      >
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          <OperationCard
-            label="Expansion"
-            tooltip="Duplicate selected right-half bits from 32 to 48 bits before key mixing."
-            data={splitChars(currentStep.expanded, 12)}
-            active={currentStep.phase === "round"}
+        {currentState.map((row, rowIndex) => (
+          <AesMatrixRow
+            key={`row-${rowIndex}`}
+            row={row}
+            rowIndex={rowIndex}
+            previousState={previousState}
           />
-          <OperationCard
-            label="XOR with subkey"
-            tooltip="Combine expanded right half with current round key using XOR."
-            data={splitChars(currentStep.xored, 12)}
-            active={currentStep.phase === "round"}
-          />
-          <OperationCard
-            label="S-box"
-            tooltip="Substitute chunks through non-linear lookup tables to hide structure."
-            data={splitChars(currentStep.sboxed, 12)}
-            active={currentStep.phase === "round"}
-          />
-          <OperationCard
-            label="Permutation"
-            tooltip="Reorder substituted bits before combining with left half."
-            data={splitChars(currentStep.permuted, 12)}
-            active={currentStep.phase === "round"}
-          />
-        </div>
-      </motion.div>
-
-      <div className="rounded-2xl border border-border/70 bg-muted/30 p-3 text-muted-foreground text-xs">
-        {currentStep.phase === "initial"
-          ? "Initial permutation done. Block split into L0 and R0."
-          : currentStep.phase === "round"
-            ? `Feistel update complete for round ${currentStep.round}. L and R cross to emphasize the swap.`
-            : "Final swap completed, then inverse permutation emits ciphertext."}
+        ))}
       </div>
     </div>
   );
 }
 
-function AesCanvas({
-  states,
-  stages,
-  stageIndex,
+function AesMatrixRow({
+  row,
+  rowIndex,
+  previousState,
 }: {
-  states: string[][][];
-  stages: AesStage[];
-  stageIndex: number;
+  row: string[];
+  rowIndex: number;
+  previousState: string[][];
 }) {
-  const state = states[Math.min(stageIndex, states.length - 1)];
+  return (
+    <>
+      <div className="flex items-center px-2 text-[0.62rem] text-muted-foreground uppercase tracking-[0.18em]">
+        R{rowIndex}
+      </div>
+      {row.map((byte, columnIndex) => {
+        const previousByte = previousState[rowIndex]?.[columnIndex] ?? byte;
+        const changed = previousByte !== byte;
+
+        return (
+          <motion.div
+            key={`cell-${rowIndex}-${columnIndex}`}
+            animate={{
+              y: changed ? [-2, 0] : 0,
+            }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className={cn(
+              "flex aspect-square cursor-default flex-col items-center justify-center rounded-md border px-2 text-center shadow-sm transition-colors",
+              changed
+                ? "border-amber-400/35 bg-amber-400/10"
+                : "border-border/70 bg-background/80",
+            )}
+          >
+            <span className="text-[0.55rem] text-muted-foreground uppercase tracking-[0.16em]">
+              b{matrixIndexToByteIndex(rowIndex, columnIndex)}
+            </span>
+            <span className="mt-1 font-mono font-semibold text-lg leading-none">
+              <AnimatedValue value={byte} />
+            </span>
+          </motion.div>
+        );
+      })}
+    </>
+  );
+}
+
+function SmallStateCard({
+  label,
+  state,
+  accentClassName,
+}: {
+  label: string;
+  state: string[][];
+  accentClassName: string;
+}) {
+  const flatState = state.flat();
+  const previousFlatRef = useRef<string[]>(flatState);
+  const previousFlat = previousFlatRef.current;
+
+  useEffect(() => {
+    previousFlatRef.current = flatState;
+  }, [flatState]);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-border/70 bg-muted/35 p-3">
-        <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
-          AES round lens
-        </p>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {stages.map((stage, index) => (
+    <div className={cn("rounded-2xl border p-3", accentClassName)}>
+      <p className="text-[0.62rem] text-muted-foreground uppercase tracking-[0.18em]">
+        {label}
+      </p>
+      <div className="mt-3 grid grid-cols-4 gap-1.5 font-mono text-xs">
+        {flatState.map((byte, index) => {
+          const changed = (previousFlat[index] ?? byte) !== byte;
+
+          return (
             <motion.div
-              key={stage}
-              animate={{
-                scale: stageIndex === index ? 1.04 : 1,
-                opacity: stageIndex === index ? 1 : 0.6,
-              }}
+              key={`${label}-${index}`}
+              animate={{ y: changed ? [-2, 0] : 0 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
               className={cn(
-                "rounded-xl border px-2 py-2 text-center text-xs uppercase tracking-[0.14em]",
-                stageIndex === index
-                  ? "border-highlight/60 bg-highlight/12"
-                  : "border-border/70 bg-background/70",
+                "flex aspect-square items-center justify-center rounded-md border px-2 text-center shadow-sm transition-colors",
+                changed
+                  ? "border-amber-400/35 bg-amber-400/10"
+                  : "border-border/70 bg-background/80",
               )}
             >
-              {stage}
+              {byte}
             </motion.div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-border/70 p-4">
-        <div className="mx-auto grid max-w-lg grid-cols-4 gap-2">
-          {state.flat().map((byte, index) => (
-            <motion.div
-              key={`aes-cell-${index}`}
-              className="flex aspect-square items-center justify-center rounded-lg border border-chart-3/40 bg-chart-3/8 p-2 text-center font-mono text-lg"
-            >
-              <AnimatedValue
-                value={byte}
-                className="font-semibold leading-none"
-              />
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function RsaCanvas({ preview, step }: { preview: RsaPreview; step: number }) {
-  const activeStepIndex = Math.min(step, preview.steps.length - 1);
-  const activeStep = preview.steps[activeStepIndex];
-  const activeBit =
-    activeStep.activeBitIndex === null
-      ? -1
-      : Math.min(activeStep.activeBitIndex, preview.exponentBits.length - 1);
-  const activeBitDisplayIndex =
-    activeBit < 0 ? -1 : preview.exponentBits.length - 1 - activeBit;
-  const isDecrypt = preview.mode === "decrypt";
-
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-2">
-        <motion.div
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          className={cn(
-            "rounded-2xl border p-3",
-            isDecrypt
-              ? "border-border/70 bg-muted/35"
-              : "border-highlight-strong/35 bg-highlight-strong/10",
-          )}
-        >
-          <p
-            className={cn(
-              "text-xs uppercase tracking-[0.16em]",
-              isDecrypt ? "text-muted-foreground" : "text-highlight-strong",
-            )}
-          >
-            Public highway
-          </p>
-          <p className="mt-2 text-sm">
-            Anyone can use (n, e) to lock the message.
-          </p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, x: 10 }}
-          animate={{ opacity: 1, x: 0 }}
-          className={cn(
-            "rounded-2xl border p-3",
-            isDecrypt
-              ? "border-chart-4/35 bg-chart-4/10"
-              : "border-border/70 bg-muted/35",
-          )}
-        >
-          <p
-            className={cn(
-              "text-xs uppercase tracking-[0.16em]",
-              isDecrypt ? "text-chart-4" : "text-muted-foreground",
-            )}
-          >
-            Private backdoor
-          </p>
-          <p className="mt-2 text-sm">
-            Only d unlocks the cipher back to the message.
-          </p>
-        </motion.div>
-      </div>
-
-      <div className="rounded-2xl border border-border/70 bg-muted/35 p-3">
-        <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
-          RSA flow
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {preview.steps.map((flowStep, index) => (
-            <motion.div
-              key={flowStep.id}
-              animate={{
-                scale: index === activeStepIndex ? 1.04 : 1,
-                borderColor:
-                  index === activeStepIndex
-                    ? "var(--highlight)"
-                    : "var(--border)",
-              }}
-              className="rounded-lg border bg-background px-3 py-2 text-xs"
-            >
-              {flowStep.label}
-            </motion.div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-border/70 bg-muted/35 p-3">
-        <p className="text-muted-foreground text-xs uppercase tracking-[0.16em]">
-          Repeated squaring tree
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {preview.exponentBits.map((bit, index) => (
-            <motion.div
-              key={`rsa-bit-${index}`}
-              animate={{
-                scale: index === activeBitDisplayIndex ? 1.08 : 1,
-                borderColor:
-                  index === activeBitDisplayIndex
-                    ? "var(--chart-4)"
-                    : "var(--border)",
-              }}
-              className="rounded-lg border bg-background px-3 py-2 text-center"
-            >
-              <p className="font-mono text-sm">bit {index}</p>
-              <p className="font-bold text-lg leading-tight">
-                <AnimatedValue value={bit} />
-              </p>
-            </motion.div>
-          ))}
-        </div>
-        <div className="mt-3 rounded-lg border border-border/70 bg-background/70 px-3 py-2 text-muted-foreground text-xs">
-          <p>{activeStep.detail}</p>
-          <p className="mt-1 font-mono">{activeStep.formula}</p>
-        </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -988,458 +697,173 @@ function AnimatedValue({
   );
 }
 
-function NibbleRow({
-  blocks,
-  accent,
-}: {
-  blocks: string[];
-  accent: "cyan" | "amber";
-}) {
-  return (
-    <div className="mt-2 grid grid-cols-8 gap-1.5">
-      {blocks.map((value, index) => (
-        <motion.div
-          key={`${accent}-${index}`}
-          className={cn(
-            "flex aspect-square items-center justify-center rounded-md border font-mono text-sm",
-            accent === "cyan"
-              ? "border-highlight/40 bg-highlight/10 text-highlight"
-              : "border-chart-4/40 bg-chart-4/10 text-chart-4",
-          )}
-        >
-          <AnimatedValue value={value} className="leading-none" />
-        </motion.div>
-      ))}
-    </div>
-  );
-}
-
-function OperationCard({
-  label,
-  tooltip,
-  data,
-  active,
-}: {
-  label: string;
-  tooltip: string;
-  data: string[];
-  active: boolean;
-}) {
-  return (
-    <motion.div
-      animate={{ opacity: active ? 1 : 0.45 }}
-      className="rounded-xl border border-border/70 bg-background/75 p-2"
-      title={tooltip}
-    >
-      <p className="text-[0.65rem] text-muted-foreground uppercase tracking-[0.16em]">
-        {label}
-      </p>
-      <div className="mt-2 grid grid-cols-6 gap-1">
-        {data.map((value, index) => (
-          <motion.div
-            key={`${label}-${index}`}
-            className="rounded border border-border/60 bg-muted/50 py-1 text-center font-mono text-xs"
-          >
-            <AnimatedValue value={value} className="leading-none" />
-          </motion.div>
-        ))}
-      </div>
-    </motion.div>
-  );
-}
-
-function buildDesSimulation(
-  input: string,
-  keyHex: string,
-  mode: CipherMode,
-): DesSimulationResult {
-  const normalizedKey = normalizeHex(keyHex || DEFAULT_DES_KEY, 16);
-  const rawInput =
-    mode === "encrypt"
-      ? textToHexBlock(input || "CipherFlow", 8)
-      : normalizeHex(input, 16);
-
-  const roundKeysForward = Array.from({ length: DES_ROUNDS }, (_, index) =>
-    deriveRoundSubKey(normalizedKey, index + 1),
-  );
-  const roundKeys =
-    mode === "encrypt" ? roundKeysForward : [...roundKeysForward].reverse();
-
-  const permutedInput = permute(rawInput, INITIAL_PERMUTATION);
-  let left = permutedInput.slice(0, 8);
-  let right = permutedInput.slice(8, 16);
-
-  const steps: DesStep[] = [
-    {
-      id: "des-initial",
-      round: 0,
-      phase: "initial",
-      left,
-      right,
-      expanded: "",
-      xored: "",
-      sboxed: "",
-      permuted: "",
-      subKey: "",
-      explanation:
-        "The 64-bit block is permuted and split into left and right 32-bit halves.",
-      formula: "L0 || R0 = IP(plaintext)",
-    },
-  ];
-
-  for (let round = 1; round <= DES_ROUNDS; round += 1) {
-    const subKey = roundKeys[round - 1];
-    const expanded = expandHalf(right);
-    const xored = xorHex(expanded, subKey);
-    const sboxed = runSBoxes(xored);
-    const permuted = permute(sboxed, PBOX_TABLE);
-    const roundMask = pickByIndex(permuted, ROUND_MASK_TABLE);
-
-    const nextLeft = right;
-    const nextRight = xorHex(left, roundMask);
-
-    steps.push({
-      id: `des-round-${round}`,
-      round,
-      phase: "round",
-      left: nextLeft,
-      right: nextRight,
-      expanded,
-      xored,
-      sboxed,
-      permuted,
-      subKey,
-      explanation:
-        "Right half expands, mixes with round key, passes through S-boxes, then permutes before XOR with left half.",
-      formula: `L${round}=R${round - 1}, R${round}=L${round - 1} xor F(R${round - 1}, K${round})`,
-    });
-
-    left = nextLeft;
-    right = nextRight;
-  }
-
-  const combined = `${right}${left}`;
-  const simulatedOutput = permute(combined, INVERSE_PERMUTATION);
-
-  steps.push({
-    id: "des-final",
-    round: DES_ROUNDS,
-    phase: "final",
-    left: right,
-    right: left,
-    expanded: "",
-    xored: "",
-    sboxed: "",
-    permuted: "",
-    subKey: "",
-    explanation:
-      "After the final Feistel swap, inverse permutation returns bits to output order.",
-    formula: "ciphertext = IP^-1(R16 || L16)",
-  });
-
-  const realOutputResult = runRealDes(input, normalizedKey, mode);
-
-  return {
-    normalizedKey,
-    roundKeys,
-    steps,
-    simulatedOutput,
-    realOutput: realOutputResult.output,
-    realError: realOutputResult.error,
-  };
-}
-
 function buildAesPreview(
   input: string,
   keyHex: string,
   mode: CipherMode,
 ): AesPreview {
-  const state0 =
+  const normalizedKey = normalizeHex(keyHex || DEFAULT_AES_KEY, 32);
+  const blockHex =
     mode === "encrypt"
-      ? chunkToRows(textToHexBlock(input || "CipherFlow", 16))
-      : chunkToRows(normalizeHex(input, 32));
-  const keyBytes = chunkToRows(normalizeHex(keyHex || DEFAULT_AES_KEY, 32));
-
-  const states =
-    mode === "encrypt"
-      ? (() => {
-          const subBytes = applyAesSubBytes(state0, false);
-          const shifted = applyAesShiftRows(subBytes, false);
-          const mixed = applyAesMixColumns(shifted, false);
-          const keyed = applyAesRoundKey(mixed, keyBytes);
-
-          return [state0, subBytes, shifted, mixed, keyed];
-        })()
-      : (() => {
-          const invShifted = applyAesShiftRows(state0, true);
-          const invSubBytes = applyAesSubBytes(invShifted, true);
-          const keyed = applyAesRoundKey(invSubBytes, keyBytes);
-          const invMixed = applyAesMixColumns(keyed, true);
-
-          return [state0, invShifted, invSubBytes, keyed, invMixed];
-        })();
-
-  const realOutput = runRealAes(input, normalizeHex(keyHex, 32), mode);
+      ? textToHexBlock(input || "CipherFlow demo", 16)
+      : normalizeHex(input, 32);
+  const blockBytes = hexToBytes(blockHex);
+  const keyBytes = hexToBytes(normalizedKey);
+  const roundOneKeyBytes = deriveRoundOneKey(keyBytes);
+  const inputState = bytesToState(blockBytes);
+  const keyState = bytesToState(keyBytes);
+  const roundOneKeyState = bytesToState(roundOneKeyBytes);
+  const realOutput = runRealAes(input, normalizedKey, mode);
 
   return {
-    stages:
-      mode === "encrypt" ? [...AES_ENCRYPT_STAGES] : [...AES_DECRYPT_STAGES],
-    states,
+    frames:
+      mode === "encrypt"
+        ? buildEncryptFrames(inputState, keyState, roundOneKeyState)
+        : buildDecryptFrames(inputState, keyState, roundOneKeyState),
+    blockHex,
+    blockBytes: describeBlockBytes(blockBytes, mode === "encrypt" ? input : ""),
+    keyState,
+    roundOneKeyState,
     output: realOutput.output,
     error: realOutput.error,
+    blockNote:
+      mode === "encrypt"
+        ? describePlaintextScope(input)
+        : describeCipherScope(input),
+    scopeNote:
+      mode === "encrypt"
+        ? "This panel shows one teaching round, not full AES-128."
+        : "This panel reverses one teaching round, not full AES-128.",
   };
 }
 
-function buildRsaPreview(
-  input: string,
-  keys: RsaDemoKeyPair,
-  mode: CipherMode,
-): RsaPreview {
-  const exponent = mode === "encrypt" ? keys.e : keys.d;
-  const exponentBits = Math.max(1, exponent).toString(2).split("");
+function buildEncryptFrames(
+  inputState: string[][],
+  roundZeroKeyState: string[][],
+  roundOneKeyState: string[][],
+): AesFrame[] {
+  const roundZero = xorStates(inputState, roundZeroKeyState);
+  const subBytes = applyAesSubBytes(roundZero, false);
+  const shiftRows = applyAesShiftRows(subBytes, false);
+  const mixColumns = applyAesMixColumns(shiftRows, false);
+  const roundOne = xorStates(mixColumns, roundOneKeyState);
 
-  if (mode === "encrypt") {
-    const plainBlocks = encodeTextToRsaBlocks(input);
-
-    if (plainBlocks.length === 0) {
-      return {
-        mode,
-        exponentBits,
-        steps: [
-          {
-            id: "rsa-await-plaintext",
-            label: "Provide plaintext",
-            detail:
-              "Type text to encode into byte blocks before public-key encryption.",
-            formula: "C = M^e mod n",
-            activeBitIndex: null,
-            accumulator: 0,
-            base: 0,
-            exponentRemainder: exponent,
-          },
-        ],
-        output: "",
-        error: "Provide plaintext text to encrypt with RSA.",
-      };
-    }
-
-    const cipherBlocks = plainBlocks.map((block) =>
-      modPow(block, keys.e, keys.n),
-    );
-    const steps = buildRsaFlowSteps({
-      mode,
-      baseInput: plainBlocks[0] ?? 0,
-      exponent,
-      modulus: keys.n,
-      result: cipherBlocks[0] ?? 0,
-    });
-
-    return {
-      mode,
-      exponentBits,
-      steps,
-      output: formatRsaCipherBlocks(cipherBlocks),
-      error: null,
-    };
-  }
-
-  const cipherBlocks = parseRsaCipherBlocks(input);
-
-  if (cipherBlocks === null || cipherBlocks.length === 0) {
-    return {
-      mode,
-      exponentBits,
-      steps: [
-        {
-          id: "rsa-await-input",
-          label: "Provide ciphertext",
-          detail:
-            "Enter a decimal or hex ciphertext value to run private-key decryption flow.",
-          formula: "M = C^d mod n",
-          activeBitIndex: null,
-          accumulator: 0,
-          base: 0,
-          exponentRemainder: exponent,
-        },
-      ],
-      output: "",
-      error:
-        "Provide RSA ciphertext blocks as decimal or 0x hex values separated by spaces.",
-    };
-  }
-
-  const normalizedCipherBlocks = cipherBlocks.map(
-    (block) => ((block % keys.n) + keys.n) % keys.n,
-  );
-  const plainBlocks = normalizedCipherBlocks.map((block) =>
-    modPow(block, keys.d, keys.n),
-  );
-  const plainText = decodeRsaBlocksAsText(plainBlocks);
-  const steps = buildRsaFlowSteps({
-    mode,
-    baseInput: normalizedCipherBlocks[0] ?? 0,
-    exponent,
-    modulus: keys.n,
-    result: plainBlocks[0] ?? 0,
-  });
-
-  return {
-    mode,
-    exponentBits,
-    steps,
-    output: plainText,
-    error: null,
-  };
-}
-
-function buildRsaFlowSteps({
-  mode,
-  baseInput,
-  exponent,
-  modulus,
-  result,
-}: {
-  mode: CipherMode;
-  baseInput: number;
-  exponent: number;
-  modulus: number;
-  result: number;
-}): RsaFlowStep[] {
-  const normalizedBase = ((baseInput % modulus) + modulus) % modulus;
-  const exponentLabel = mode === "encrypt" ? "e" : "d";
-  const sourceLabel = mode === "encrypt" ? "M" : "C";
-  const outputLabel = mode === "encrypt" ? "C" : "M";
-
-  const steps: RsaFlowStep[] = [
+  return [
     {
-      id: "rsa-input",
-      label: mode === "encrypt" ? "Load message" : "Load ciphertext",
-      detail:
-        mode === "encrypt"
-          ? "Normalize message into the modulo field before exponentiation."
-          : "Normalize ciphertext into modulo field before private-key exponentiation.",
-      formula: `${sourceLabel}0 = ${sourceLabel} mod n`,
-      activeBitIndex: null,
-      accumulator: 1,
-      base: normalizedBase,
-      exponentRemainder: exponent,
+      id: "input",
+      label: "Input state",
+      eyebrow: "Block load",
+      description:
+        "The first 16 bytes are mapped column-first into the 4 x 4 AES state.",
+      formula: "state[r,c] = block[4c + r]",
+      state: inputState,
     },
     {
-      id: "rsa-key",
-      label: mode === "encrypt" ? "Use public key" : "Use private key",
-      detail:
-        mode === "encrypt"
-          ? "Apply public exponent e with repeated squaring."
-          : "Apply private exponent d with repeated squaring.",
-      formula: `${outputLabel} = ${sourceLabel}^${exponentLabel} mod n`,
-      activeBitIndex: null,
-      accumulator: 1,
-      base: normalizedBase,
-      exponentRemainder: exponent,
+      id: "round-zero-key",
+      label: "AddRoundKey",
+      eyebrow: "Round 0",
+      description: "XOR with the original 128-bit key before nonlinear steps.",
+      formula: "state = state XOR roundKey0",
+      state: roundZero,
+    },
+    {
+      id: "sub-bytes",
+      label: "SubBytes",
+      eyebrow: "Nonlinearity",
+      description: "Each byte passes through the AES S-box.",
+      formula: "state[r,c] = SBox[state[r,c]]",
+      state: subBytes,
+    },
+    {
+      id: "shift-rows",
+      label: "ShiftRows",
+      eyebrow: "Row offsets",
+      description:
+        "Rows rotate left by 0/1/2/3 to spread bytes across columns.",
+      formula: "row r <- RotLeft(row r, r)",
+      state: shiftRows,
+    },
+    {
+      id: "mix-columns",
+      label: "MixColumns",
+      eyebrow: "Diffusion",
+      description: "Columns are remixed in GF(2^8) for diffusion.",
+      formula: "column' = M x column",
+      state: mixColumns,
+    },
+    {
+      id: "round-one-key",
+      label: "AddRoundKey",
+      eyebrow: "Round 1",
+      description: "XOR with round-1 key to finish this single-round view.",
+      formula: "state = state XOR roundKey1",
+      state: roundOne,
     },
   ];
-
-  let accumulator = 1;
-  let currentBase = normalizedBase;
-  let exponentRemainder = exponent;
-  let bitIndex = 0;
-
-  while (exponentRemainder > 0) {
-    const bit = exponentRemainder % 2;
-
-    if (bit === 1) {
-      accumulator = (accumulator * currentBase) % modulus;
-    }
-
-    steps.push({
-      id: `rsa-bit-${bitIndex}`,
-      label: `Bit ${bitIndex}: ${bit === 1 ? "Multiply" : "Skip multiply"}`,
-      detail:
-        bit === 1
-          ? "Bit is 1, so accumulator multiplies by current base before modular reduction."
-          : "Bit is 0, so accumulator stays; only base squaring continues.",
-      formula:
-        bit === 1
-          ? "acc = (acc * base) mod n; base = base^2 mod n"
-          : "base = base^2 mod n",
-      activeBitIndex: bitIndex,
-      accumulator,
-      base: currentBase,
-      exponentRemainder,
-    });
-
-    exponentRemainder = Math.floor(exponentRemainder / 2);
-    currentBase = (currentBase * currentBase) % modulus;
-    bitIndex += 1;
-  }
-
-  steps.push({
-    id: "rsa-final",
-    label: mode === "encrypt" ? "Emit ciphertext" : "Recover plaintext",
-    detail:
-      mode === "encrypt"
-        ? "Final accumulator becomes ciphertext output."
-        : "Final accumulator recovers plaintext value.",
-    formula: `${outputLabel} = ${sourceLabel}^${exponentLabel} mod n`,
-    activeBitIndex: null,
-    accumulator: result,
-    base: currentBase,
-    exponentRemainder: 0,
-  });
-
-  return steps;
 }
 
-function runRealDes(input: string, normalizedKey: string, mode: CipherMode) {
-  const key = CryptoJS.enc.Hex.parse(normalizedKey);
+function buildDecryptFrames(
+  inputState: string[][],
+  roundZeroKeyState: string[][],
+  roundOneKeyState: string[][],
+): AesFrame[] {
+  const addRoundKey = xorStates(inputState, roundOneKeyState);
+  const invMixColumns = applyAesMixColumns(addRoundKey, true);
+  const invShiftRows = applyAesShiftRows(invMixColumns, true);
+  const invSubBytes = applyAesSubBytes(invShiftRows, true);
+  const exitState = xorStates(invSubBytes, roundZeroKeyState);
 
-  if (mode === "encrypt") {
-    const encrypted = CryptoJS.DES.encrypt(input, key, {
-      mode: CryptoJS.mode.ECB,
-      padding: CryptoJS.pad.Pkcs7,
-    });
-
-    return {
-      output: encrypted.ciphertext.toString(CryptoJS.enc.Hex).toUpperCase(),
-      error: null,
-    };
-  }
-
-  const cleaned = normalizeHex(input, Math.max(16, stripToHex(input).length));
-
-  if (cleaned.length === 0 || cleaned.length % 2 !== 0) {
-    return {
-      output: "",
-      error: "DES decrypt expects an even-length hex string.",
-    };
-  }
-
-  try {
-    const cipherParams = CryptoJS.lib.CipherParams.create({
-      ciphertext: CryptoJS.enc.Hex.parse(cleaned),
-    });
-
-    const decrypted = CryptoJS.DES.decrypt(cipherParams, key, {
-      mode: CryptoJS.mode.ECB,
-      padding: CryptoJS.pad.Pkcs7,
-    });
-
-    const utf8 = decrypted.toString(CryptoJS.enc.Utf8);
-
-    if (utf8) {
-      return { output: utf8, error: null };
-    }
-
-    return {
-      output: decrypted.toString(CryptoJS.enc.Hex).toUpperCase(),
-      error: null,
-    };
-  } catch {
-    return {
-      output: "",
-      error: "Unable to decrypt this payload with the provided DES key.",
-    };
-  }
+  return [
+    {
+      id: "input",
+      label: "Cipher block",
+      eyebrow: "Block load",
+      description:
+        "The first 16 ciphertext bytes are mapped into the AES state.",
+      formula: "state[r,c] = block[4c + r]",
+      state: inputState,
+    },
+    {
+      id: "round-one-key",
+      label: "AddRoundKey",
+      eyebrow: "Reverse round",
+      description: "Start by removing round-1 key with XOR.",
+      formula: "state = state XOR roundKey1",
+      state: addRoundKey,
+    },
+    {
+      id: "inv-mix-columns",
+      label: "InvMixColumns",
+      eyebrow: "Undo diffusion",
+      description: "Inverse column mix removes column diffusion.",
+      formula: "column' = M^-1 x column",
+      state: invMixColumns,
+    },
+    {
+      id: "inv-shift-rows",
+      label: "InvShiftRows",
+      eyebrow: "Undo offsets",
+      description: "Rows rotate right by their row index.",
+      formula: "row r <- RotRight(row r, r)",
+      state: invShiftRows,
+    },
+    {
+      id: "inv-sub-bytes",
+      label: "InvSubBytes",
+      eyebrow: "Undo S-box",
+      description: "Inverse S-box restores substituted bytes.",
+      formula: "state[r,c] = InvSBox[state[r,c]]",
+      state: invSubBytes,
+    },
+    {
+      id: "round-zero-key",
+      label: "AddRoundKey",
+      eyebrow: "Exit state",
+      description: "XOR with round-0 key to finish this reverse-round view.",
+      formula: "state = state XOR roundKey0",
+      state: exitState,
+    },
+  ];
 }
 
 function runRealAes(input: string, normalizedKey: string, mode: CipherMode) {
@@ -1498,75 +922,203 @@ function applyAesSubBytes(state: string[][], inverse: boolean): string[][] {
   return state.map((row) =>
     row.map((byte) => {
       const value = Number.parseInt(byte, 16);
-
-      if (inverse) {
-        const restored = AES_INV_SBOX.get(value);
-        const output = restored ?? value & 0x0f;
-        return output.toString(16).padStart(2, "0").toUpperCase();
-      }
-
-      const mapped = AES_SBOX[value & 0x0f] ?? value & 0x0f;
-      return mapped.toString(16).padStart(2, "0").toUpperCase();
+      const mapped = inverse ? AES_INV_SBOX[value] : AES_SBOX[value];
+      return formatByte(mapped ?? value);
     }),
   );
 }
 
 function applyAesShiftRows(state: string[][], inverse: boolean): string[][] {
   return state.map((row, rowIndex) => {
-    const copy = [...row];
-    const amount = inverse ? copy.length - rowIndex : rowIndex;
-    return rotateLeftArray(copy, amount);
+    const amount = inverse ? row.length - rowIndex : rowIndex;
+    return rotateLeftArray(row, amount);
   });
 }
 
 function applyAesMixColumns(state: string[][], inverse: boolean): string[][] {
-  return state.map((row, rowIndex) =>
-    row.map((byte, columnIndex) => {
-      const value = Number.parseInt(byte, 16);
-      const delta = rowIndex * 17 + columnIndex * 29;
-      const next = inverse
-        ? (value - delta + 512) % 256
-        : (value + delta) % 256;
-      return next.toString(16).padStart(2, "0").toUpperCase();
-    }),
-  );
-}
+  const next = createEmptyState();
 
-function applyAesRoundKey(state: string[][], keyBytes: string[][]): string[][] {
-  return state.map((row, rowIndex) =>
-    row.map((byte, columnIndex) => {
-      const value = Number.parseInt(byte, 16);
-      const key = Number.parseInt(keyBytes[rowIndex][columnIndex], 16);
-      return (value ^ key).toString(16).padStart(2, "0").toUpperCase();
-    }),
-  );
-}
+  for (let column = 0; column < 4; column += 1) {
+    const source = [
+      Number.parseInt(state[0][column] ?? "00", 16),
+      Number.parseInt(state[1][column] ?? "00", 16),
+      Number.parseInt(state[2][column] ?? "00", 16),
+      Number.parseInt(state[3][column] ?? "00", 16),
+    ];
+    const mixed = inverse ? mixColumnInverse(source) : mixColumnForward(source);
 
-function createRsaDemoKeyPair(): RsaDemoKeyPair {
-  const p = choosePrime();
-  let q = choosePrime();
-
-  while (q === p) {
-    q = choosePrime();
+    for (let row = 0; row < 4; row += 1) {
+      next[row][column] = formatByte(mixed[row] ?? 0);
+    }
   }
 
-  const n = p * q;
-  const phi = (p - 1) * (q - 1);
-
-  const exponents = [17, 257, 65537, 5, 3];
-  const e = exponents.find((candidate) => gcd(candidate, phi) === 1) ?? 17;
-  const d = modInverse(e, phi);
-
-  return { p, q, n, phi, e, d };
+  return next;
 }
 
-function choosePrime(): number {
-  const index = Math.floor(Math.random() * RSA_PRIMES.length);
-  return RSA_PRIMES[index] ?? 53;
+function xorStates(left: string[][], right: string[][]): string[][] {
+  return left.map((row, rowIndex) =>
+    row.map((byte, columnIndex) => {
+      const a = Number.parseInt(byte, 16);
+      const b = Number.parseInt(right[rowIndex]?.[columnIndex] ?? "00", 16);
+      return formatByte(a ^ b);
+    }),
+  );
 }
 
-function splitChars(value: string, length: number): string[] {
-  return normalizeHex(value, length).split("");
+function mixColumnForward(column: number[]): number[] {
+  const [a0, a1, a2, a3] = column;
+  return [
+    gfMul(a0, 2) ^ gfMul(a1, 3) ^ a2 ^ a3,
+    a0 ^ gfMul(a1, 2) ^ gfMul(a2, 3) ^ a3,
+    a0 ^ a1 ^ gfMul(a2, 2) ^ gfMul(a3, 3),
+    gfMul(a0, 3) ^ a1 ^ a2 ^ gfMul(a3, 2),
+  ].map((value) => value & 0xff);
+}
+
+function mixColumnInverse(column: number[]): number[] {
+  const [a0, a1, a2, a3] = column;
+  return [
+    gfMul(a0, 14) ^ gfMul(a1, 11) ^ gfMul(a2, 13) ^ gfMul(a3, 9),
+    gfMul(a0, 9) ^ gfMul(a1, 14) ^ gfMul(a2, 11) ^ gfMul(a3, 13),
+    gfMul(a0, 13) ^ gfMul(a1, 9) ^ gfMul(a2, 14) ^ gfMul(a3, 11),
+    gfMul(a0, 11) ^ gfMul(a1, 13) ^ gfMul(a2, 9) ^ gfMul(a3, 14),
+  ].map((value) => value & 0xff);
+}
+
+function deriveRoundOneKey(keyBytes: number[]): number[] {
+  const bytes = [...keyBytes];
+
+  while (bytes.length < 16) {
+    bytes.push(0);
+  }
+
+  const words = [
+    bytes.slice(0, 4),
+    bytes.slice(4, 8),
+    bytes.slice(8, 12),
+    bytes.slice(12, 16),
+  ];
+  const transformed = subWord(rotWord(words[3] ?? [0, 0, 0, 0]));
+  transformed[0] = (transformed[0] ?? 0) ^ (AES_RCON[0] ?? 0);
+  const w4 = xorWord(words[0] ?? [0, 0, 0, 0], transformed);
+  const w5 = xorWord(words[1] ?? [0, 0, 0, 0], w4);
+  const w6 = xorWord(words[2] ?? [0, 0, 0, 0], w5);
+  const w7 = xorWord(words[3] ?? [0, 0, 0, 0], w6);
+
+  return [...w4, ...w5, ...w6, ...w7];
+}
+
+function rotWord(word: number[]): number[] {
+  return [...word.slice(1), word[0] ?? 0];
+}
+
+function subWord(word: number[]): number[] {
+  return word.map((value) => AES_SBOX[value] ?? value);
+}
+
+function xorWord(left: number[], right: number[]): number[] {
+  return left.map((value, index) => value ^ (right[index] ?? 0));
+}
+
+function bytesToState(bytes: number[]): string[][] {
+  const state = createEmptyState();
+
+  for (let column = 0; column < 4; column += 1) {
+    for (let row = 0; row < 4; row += 1) {
+      const index = column * 4 + row;
+      state[row][column] = formatByte(bytes[index] ?? 0);
+    }
+  }
+
+  return state;
+}
+
+function createEmptyState(): string[][] {
+  return Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => "00"));
+}
+
+function describeBlockBytes(
+  bytes: number[],
+  sourceText: string,
+): ByteDescriptor[] {
+  const encodedSource = Array.from(new TextEncoder().encode(sourceText)).slice(
+    0,
+    16,
+  );
+
+  return bytes.map((byte, index) => ({
+    index,
+    hex: formatByte(byte),
+    decimal: byte,
+    bits: hexToBits(formatByte(byte)),
+    charLabel:
+      sourceText.length > 0
+        ? printableByteLabel(encodedSource[index] ?? null)
+        : `slot ${index.toString().padStart(2, "0")}`,
+  }));
+}
+
+function printableByteLabel(value: number | null): string {
+  if (value === null) {
+    return "padding";
+  }
+
+  if (value === 0) {
+    return "NUL padding";
+  }
+
+  if (value >= 32 && value <= 126) {
+    return `ASCII '${String.fromCharCode(value)}'`;
+  }
+
+  return `0x${value.toString(16).padStart(2, "0").toUpperCase()}`;
+}
+
+function describePlaintextScope(value: string): string {
+  const totalBytes = Array.from(
+    new TextEncoder().encode(value || "CipherFlow demo"),
+  ).length;
+
+  if (totalBytes > 16) {
+    return `Showing bytes 0-15 of ${totalBytes}; the rest is outside this view.`;
+  }
+
+  if (totalBytes < 16) {
+    return `Block is zero-padded with ${16 - totalBytes} byte(s).`;
+  }
+
+  return "Exactly one 128-bit block.";
+}
+
+function describeCipherScope(value: string): string {
+  const cleanedLength = stripToHex(value).length;
+
+  if (cleanedLength > 32) {
+    return `Showing first 32 hex chars; ${cleanedLength - 32} chars are outside this view.`;
+  }
+
+  if (cleanedLength < 32) {
+    return `Cipher block is short by ${32 - cleanedLength} hex chars, then zero-padded.`;
+  }
+
+  return "Exactly one 128-bit ciphertext block.";
+}
+
+function matrixIndexToByteIndex(row: number, col: number): number {
+  return col * 4 + row;
+}
+
+function hexToBits(hex: string): string[] {
+  return Array.from(
+    Number.parseInt(hex || "00", 16)
+      .toString(2)
+      .padStart(8, "0"),
+  );
+}
+
+function hexToBytes(hex: string): number[] {
+  const pairs = normalizeHex(hex, 32).match(/.{1,2}/g) ?? [];
+  return pairs.map((pair) => Number.parseInt(pair, 16));
 }
 
 function textToHexBlock(value: string, bytes: number): string {
@@ -1577,22 +1129,7 @@ function textToHexBlock(value: string, bytes: number): string {
     copy.push(0);
   }
 
-  return copy
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("")
-    .toUpperCase();
-}
-
-function chunkToRows(hex: string): string[][] {
-  const normalized = normalizeHex(hex, 32);
-  const bytes = normalized.match(/.{1,2}/g) ?? [];
-
-  return [
-    bytes.slice(0, 4),
-    bytes.slice(4, 8),
-    bytes.slice(8, 12),
-    bytes.slice(12, 16),
-  ];
+  return copy.map(formatByte).join("");
 }
 
 function stripToHex(value: string): string {
@@ -1617,14 +1154,8 @@ function normalizeHex(value: string, length: number): string {
   return cleaned.padEnd(length, "0");
 }
 
-function invertPermutation(table: number[]): number[] {
-  const inverse = new Array<number>(table.length);
-
-  table.forEach((targetIndex, currentIndex) => {
-    inverse[targetIndex] = currentIndex;
-  });
-
-  return inverse;
+function formatByte(value: number): string {
+  return (value & 0xff).toString(16).padStart(2, "0").toUpperCase();
 }
 
 function rotateLeftArray<T>(array: T[], amount: number): T[] {
@@ -1636,171 +1167,35 @@ function rotateLeftArray<T>(array: T[], amount: number): T[] {
   return [...array.slice(offset), ...array.slice(0, offset)];
 }
 
-function rotateLeftHex(value: string, amount: number): string {
-  const chars = value.split("");
-  return rotateLeftArray(chars, amount).join("");
-}
+function gfMul(value: number, factor: number): number {
+  let left = value & 0xff;
+  let right = factor & 0xff;
+  let result = 0;
 
-function deriveRoundSubKey(keyHex: string, round: number): string {
-  const rotated = rotateLeftHex(keyHex, round % keyHex.length);
-  const compressionTable = [13, 2, 11, 4, 15, 6, 9, 1, 14, 8, 12, 5];
-  return compressionTable.map((index) => rotated[index] ?? "0").join("");
-}
-
-function permute(input: string, table: number[]): string {
-  const chars = input.split("");
-  return table.map((index) => chars[index] ?? "0").join("");
-}
-
-function pickByIndex(input: string, table: number[]): string {
-  const chars = input.split("");
-  return table.map((index) => chars[index] ?? "0").join("");
-}
-
-function expandHalf(rightHalf: string): string {
-  return EXPANSION_TABLE.map((index) => rightHalf[index] ?? "0").join("");
-}
-
-function xorHex(left: string, right: string): string {
-  const length = Math.min(left.length, right.length);
-  let output = "";
-
-  for (let index = 0; index < length; index += 1) {
-    const a = Number.parseInt(left[index] ?? "0", 16);
-    const b = Number.parseInt(right[index] ?? "0", 16);
-    output += (a ^ b).toString(16).toUpperCase();
-  }
-
-  return output;
-}
-
-function runSBoxes(input: string): string {
-  return input
-    .split("")
-    .map((nibble, index) => {
-      const value = Number.parseInt(nibble, 16);
-      const mapped = DES_SBOXES[index % DES_SBOXES.length]?.[value] ?? value;
-      return mapped.toString(16).toUpperCase();
-    })
-    .join("");
-}
-
-function encodeTextToRsaBlocks(value: string): number[] {
-  return Array.from(new TextEncoder().encode(value));
-}
-
-function parseRsaCipherBlocks(value: string): number[] | null {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return [];
-  }
-
-  const tokens = trimmed.split(/[\s,]+/).filter(Boolean);
-  const blocks: number[] = [];
-
-  for (const token of tokens) {
-    const parsed = parseNumberValue(token);
-
-    if (parsed === null) {
-      return null;
+  while (right > 0) {
+    if (right & 1) {
+      result ^= left;
     }
 
-    blocks.push(parsed);
-  }
+    const highBit = left & 0x80;
+    left = (left << 1) & 0xff;
 
-  return blocks;
-}
-
-function formatRsaCipherBlocks(blocks: number[]): string {
-  return blocks.join(" ");
-}
-
-function decodeRsaBlocksAsText(blocks: number[]): string {
-  if (blocks.length === 0) {
-    return "[empty]";
-  }
-
-  if (blocks.some((block) => block < 0 || block > 255)) {
-    return "[unable to decode text]";
-  }
-
-  const decoded = new TextDecoder().decode(Uint8Array.from(blocks));
-  const printable = decoded.replace(/[^\x20-\x7E]/g, "?").trim();
-
-  return printable || "[non-printable]";
-}
-
-function parseNumberValue(value: string): number | null {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
-  if (/^0x[0-9a-fA-F]+$/.test(trimmed)) {
-    return Number.parseInt(trimmed, 16);
-  }
-
-  if (/^[0-9]+$/.test(trimmed)) {
-    return Number.parseInt(trimmed, 10);
-  }
-
-  return null;
-}
-
-function modPow(base: number, exponent: number, modulus: number): number {
-  if (modulus <= 1) {
-    return 0;
-  }
-
-  let result = 1;
-  let currentBase = ((base % modulus) + modulus) % modulus;
-  let currentExponent = exponent;
-
-  while (currentExponent > 0) {
-    if (currentExponent % 2 === 1) {
-      result = (result * currentBase) % modulus;
+    if (highBit) {
+      left ^= 0x1b;
     }
 
-    currentExponent = Math.floor(currentExponent / 2);
-    currentBase = (currentBase * currentBase) % modulus;
+    right >>= 1;
   }
 
-  return result;
+  return result & 0xff;
 }
 
-function gcd(a: number, b: number): number {
-  let left = a;
-  let right = b;
+function buildInverseSBox(sbox: number[]): number[] {
+  const inverse = new Array<number>(256).fill(0);
 
-  while (right !== 0) {
-    const temp = right;
-    right = left % right;
-    left = temp;
-  }
+  sbox.forEach((value, index) => {
+    inverse[value] = index;
+  });
 
-  return left;
-}
-
-function modInverse(value: number, modulo: number): number {
-  const [x, , gcdValue] = extendedGcd(value, modulo);
-
-  if (Math.abs(gcdValue) !== 1) {
-    return 1;
-  }
-
-  const normalized = x % modulo;
-  const positive = normalized >= 0 ? normalized : normalized + modulo;
-  return Math.floor(positive);
-}
-
-function extendedGcd(a: number, b: number): [number, number, number] {
-  if (b === 0) {
-    return [1, 0, a];
-  }
-
-  const [x1, y1, gcdValue] = extendedGcd(b, a % b);
-  const quotient = Math.floor(a / b);
-  return [y1, x1 - quotient * y1, gcdValue];
+  return inverse;
 }

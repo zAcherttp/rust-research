@@ -19,16 +19,16 @@ export interface WorkspaceCatalogItem {
 export const workspaceCatalog: WorkspaceCatalogItem[] = [
   {
     id: "cipherflow-des-aes-rsa-visualization",
-    title: "CipherFlow cryptography internals",
+    title: "CipherFlow AES block explorer",
     href: "/visualizations/cipherflow" as Route,
     category: "Cryptography",
     format: "Interactive visualization",
     description:
-      "Animate DES rounds, preview AES state transformations, and inspect RSA modular exponentiation step by step.",
+      "Follow one AES-128 block through round transforms, inspect the 4 x 4 state, and read byte-level bit changes directly.",
     status: "Live",
     updatedAt: "Apr 18, 2026",
     duration: "Open ended",
-    sizeLabel: "DES + AES + RSA",
+    sizeLabel: "AES-128",
     accentClassName: "text-cyan-500",
     accentSoftClassName: "bg-cyan-500/10 text-cyan-500",
     previewClassName:
